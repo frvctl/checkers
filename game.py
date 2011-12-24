@@ -16,7 +16,6 @@
 ## -> Make it play against itself                                   ##
 ## -> Have a way to record statistics from the game                 ##
 ## -> Compartmentalize the code into different files                ##
-#RAWR 
 import pygame, sys
 from pygame.locals import *
 
