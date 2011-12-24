@@ -271,10 +271,14 @@ class piece:
         num += 15*self.justJumped
         
         if not self.king:
-            num += vBoard[self.y][self.x]
-            if self.y == 1:
-                num += 10
+            if self.red:
+                if self.y == 1:
+                    num += 10
+            else:
+                if self.y == 8:
+                    num += 10
         if self.king:
+            #find direction of 
             num += 1
         for i in range(0,len(movesWithoutJumps)):
             near_X, near_Y = movesWithoutJumps[i]
@@ -332,6 +336,18 @@ class move:
     
 def miniMax(p,depth):
     if depth == 0:
+        winCheck = checkPieces(p.color)
+        if winCheck[0]:
+            if winCheck[1]:
+                if p.red:
+                    return INFINITY/2,
+                else:
+                    return -INFINITY/2,
+            else:
+                if p.red:
+                    return -INFINITY/2,
+                else:
+                    return INFINITY/2,
         return p.evaluate(),
     bestValue = INFINITY
     bestMove = None
@@ -360,7 +376,7 @@ def miniMax(p,depth):
 def miniMax2(depth):
     allMoves = []
     realBestMove = None
-    realBestValue = -INFINITY
+    realBestValue = -sys.maxint
     for p in pieces:
         if p.red and not p.killed:
             #do red moves
@@ -407,10 +423,11 @@ def miniMax2(depth):
                 move.undo(True)
                 movecounter += 1
             #end of moves
-            bestValue = -INFINITY
+            bestValue = -sys.maxint
             bestIndex = -1
             for i in range(movecounter):
                 value = perMoveValue[i]
+                #print value
                 if value > bestValue:#red
                     bestValue = value
                     bestIndex = i
@@ -420,13 +437,13 @@ def miniMax2(depth):
                 
     #end of pieces
             
-    #print realValues
+    #print allMoves
     for value in allMoves:
         if value[0] > realBestValue:
             realBestValue = value[0]
             realBestMove = value[1]
             
-    #print realBestValue
+    #print "final: ",realBestValue
     return realBestMove
             #return best move back to doComputer()
             
@@ -448,24 +465,19 @@ def resetBoard():
             [9,1,0,1,0,1,0,1,0,9],
             [9,9,9,9,9,9,9,9,9,9]
             ]
+    """board = [                        ## 1 is red piece, 2 is black piece, 9 is the border, this is the BitMap 
+            [9,9,9,9,9,9,9,9,9,9],
+            [9,0,2,0,2,0,2,0,2,9],
+            [9,0,0,2,0,0,0,0,0,9],
+            [9,0,0,0,0,0,2,0,0,9],
+            [9,0,0,0,0,0,0,0,0,9],
+            [9,0,0,0,0,0,2,0,0,9],
+            [9,0,0,0,0,0,0,1,0,9],
+            [9,0,0,0,0,0,0,0,0,9],
+            [9,0,0,0,0,0,0,0,0,9],
+            [9,9,9,9,9,9,9,9,9,9]
+            ]"""
 resetBoard()
-
-def valueAssign():
-    """ Value assignments for the various board positions """
-    global vBoard
-    vBoard =  [
-              [9,9,9,9,9,9,9,9,9,9],
-              [9,0,2,0,2,0,2,0,2,9],
-              [9,2,0,2,0,2,0,2,0,9],
-              [9,0,1,0,1,0,1,0,2,9],
-              [9,2,0,1,0,1,0,1,0,9],
-              [9,0,1,0,1,0,1,0,2,9],
-              [9,2,0,1,0,1,0,1,0,9],
-              [9,0,0,0,0,0,0,0,1,9],
-              [9,2,0,2,0,2,0,2,0,9],
-              [9,9,9,9,9,9,9,9,9,9]
-              ]
-valueAssign()
 
 def resetPieces():
     """ Resets the piece array to the board """
@@ -619,11 +631,13 @@ def doComputer2():
     global selectedPiece, computerstate,computermove, redTurn
     bestmove = miniMax2(5)
     #bestmove.do()
-    bestPiece = getPiece(bestmove.source_X,bestmove.source_Y)
-    computermove = bestmove
-    selectedPiece = bestPiece
-    computerstate = 1
-    redTurn = True
+    if bestmove != None:
+        bestPiece = getPiece(bestmove.source_X,bestmove.source_Y)
+        computermove = bestmove
+        selectedPiece = bestPiece
+        computerstate = 1
+        redTurn = True
+    else: print "whaaaat"
                  
 def drawBoard():
     """ Draw's the checker board and the indicator for selection over a selected piece """
@@ -665,7 +679,7 @@ def eventCheck(event):
         if event.key == 27:
             gameStarted = False
 
-def checkPieces():
+def checkPieces(color = None):
     """ Checks for various attributes of pieces after each move 
         Also Checks for winners and determines the winner or if there is a tie."""
     global pieces, gameOver, playerWon
@@ -675,12 +689,12 @@ def checkPieces():
         if p.killed:
             continue
         if p.red:
-            if p.y == 1:
+            if color == None and p.y == 1:
                 p.king = True
             if not redcanmove:
                 redcanmove = p.canMoveAnywhere()
         else:
-            if p.y == 8:
+            if color == None and p.y == 8:
                 p.king = True
             if not blackcanmove:
                 blackcanmove = p.canMoveAnywhere()
@@ -693,6 +707,19 @@ def checkPieces():
     elif not blackcanmove and not redcanmove:
         gameOver = True
         playerWon = "Tie"
+    if color != None:
+        someonewon = gameOver
+        currentplayerwon = False
+        gameOver = False
+        if someonewon:
+            if playerWon == "Tie":
+                currentplayerwon = True
+            elif color == PIECE_RED and playerWon == "Red":
+                currentplayerwon = True
+            elif color == PIECE_BLACK and playerWon == "Black":
+                currentplayerwon = True
+        return someonewon,currentplayerwon
+            
                         
 def drawtext():
     """ Draw's the text for who's turn it is and display's the winner of the game """
