@@ -20,7 +20,8 @@
 ## ================================================================ ##
 
 ## ======== Imports ========= ##
-import pygame, sys
+import pygame
+import sys
 from pygame.locals import *
 ## ========================== ##
 
@@ -31,7 +32,7 @@ mainClock = pygame.time.Clock() # Game clock: used for slowing down the AI oppon
 INFINITY = 99999999 # Constant used for the AI algorithms
 
 ## ======================================= Size of the window ====================================== ##
-boardOffSet_X = 400  # The extra space on the right - used for displaying information to the user
+boardOffSet_X = 400  # The extra space on the left - used for displaying information to the user
 board_XRES = 1000    # Length of the board   
 board_YRES = 1000    # Width of the board
 ## ================================================================================================= ##
@@ -74,24 +75,24 @@ PIECE_VOID = 9      # No piece drawn -- Border of BitMap
 
 ## =================================== Move Lists ============================================= ##
 ## Each tuple represents a move that the pieces are allowed to make. Up and down                ##
-## is relative to looking at the board from the bottom, where the red pieces are, as up         ##
-## and the top of the board with black pieces being forward.                                    ##
+## is relative to looking at the board from the bottom, where the red pieces are, as down,      ##
+## and the top of the board with black pieces being up.                                         ##
 ## ============================================================================================ ##
-## (2, 2) = Jump back right;         (2, -2) = Jump back left;                                  ##
-## (-2, -2) = Jump forward left;     (-2, 2) = Jump forward right;                              ##
-## (1, 1) = back right;              (1, -1) = Back left;                                       ##
-## (-1, -1) = forward left;          (-1, 1) = Forward right;                                   ##
+## (2, 2) = Jump up right;         (2, -2) = Jump down left;                                    ##
+## (-2, -2) = Jump up left;     (-2, 2) = Jump up right;                                        ##
+## (1, 1) = Down right;              (1, -1) = Down left;                                       ##
+## (-1, -1) = Up left;          (-1, 1) = Up right;                                             ##
 ## ============================================================================================ ##
 ## The numbers represent the difference of the pieces initial coordinates on the BitMap         ##
-## - as in a set of numbers such as 7, 4; 7 being the Y coordinate and 3 being the X coordinate ##
+## - as in a set of numbers such as 7, 4; 7 being the X coordinate and 3 being the Y coordinate ##
 ## - and the pieces new coordinates. Thus if the piece moves from 7, 4 to 6, 5                  ##
-## - a perfectly legal move - it would return (-1, 1) which indicates Forward right             ##
+## - a perfectly legal move - it would return (-1, 1) which indicates Forward right.             ##
 ## ============================================================================================ ##
 possibleMoves = [(2,2),(2,-2),(-2,-2),(-2,2),(1,1),(1,-1),(-1,1),(-1,-1)] # All possible moves
 movesWithoutJumps = [(1,1),(1,-1),(-1,-1),(-1,1)]                         # Moves without jumps
 ## ============================================================================================ ##
 
-## ======================= State Variables ======================== ##
+## ===================================================== State Variables =============================================================== ##
 gameOver = False        # Determines if game is over
 gameStarted = False     # Determines if game is started
 playerWon = "Winner"    # Keeps track of the winner
@@ -100,9 +101,9 @@ selectedPiece = None    # Shows if there is a piece selected
 computerPlayer = False  # Makes the computer play
 computerState = 0       # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
 computerMove = None     # Assigns the best move to the computer that the computer will then do
-computerTimer = 0
+computerTimer = 0       # Timer for the AI - used so that the computer is not super fast - makes it more playable 
 moveList = []           # Stores lists of moves that the AI uses
-## ================================================================ ##
+## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
 introImage = pygame.image.load('idontcare.png')           # Menu Picture
@@ -125,10 +126,22 @@ blackKingStretched = pygame.transform.scale(blackKingImage, (CELL_X, CELL_Y))   
 ## aspects of the AI allowing it to do and undo moves, and the evaluate  ##
 ## function                                                              ##
 ## ===================================================================== ##
+
 class piece:
-    """ Everything to do with pieces is here in this class """
+    
+    """ 
+    
+         Controls most aspects that have to do with the pieces on the          
+         board. Including displaying pieces, determining if movement is legal, 
+         aspects of the AI allowing it to do and undo moves, and the evaluate  
+         function
+         
+    """
+    
     def __init__(self, x, y, red, king=False):
+        
         """ Constructor for the piece class. """
+        
         self.x = x                  # X-Coordinates
         self.y = y                  # Y-Coordinates
         self.king = king            # King pieces
@@ -156,8 +169,13 @@ class piece:
             return blackpieceStretched
         
     def canMove(self, diff_X, diff_Y):
-        """ Determines if a piece can move. Kings can move forward and backward. 
-            Red pieces can move forward only. Black pieces can move backward only."""
+        
+        """ 
+            Determines if a piece can move. Kings can move forward and backward. 
+            Red pieces can move forward only. Black pieces can move backward only.
+            
+        """
+        
         if abs(diff_X) != abs(diff_Y) or abs(diff_X) > 2 or abs(diff_Y) > 2:    
             return False,                                                   
         temp_X = self.x  # X Coordinate after a move
@@ -172,26 +190,28 @@ class piece:
             unit_X = diff_X / abs(diff_X)   # Turns the X coordinate into a 1 or -1 
             unit_Y = diff_Y / abs(diff_Y)
             if abs(diff_X) > 1:
-                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:  # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, temp_X, temp_Y, True                                       # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
-                else:                                                                       # Else the above falls through - returns False (it cannot move) 
-                    return False,                                                           # returns False (it cannot move)  
-            return True, temp_X, temp_Y, False                                              # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (it is not a jump)
-        return False,                                                                       # Assuming none of the above apply returns False (it cannot move) 
+                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
+                    return True, temp_X, temp_Y, True                             # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                else:                                                             # Else the above falls through - returns False (it cannot move) 
+                    return False,                                                 # returns False (it cannot move)  
+            return True, temp_X, temp_Y, False                                    # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (it is not a jump)
+        return False,                                                             # Assuming none of the above apply returns False (it cannot move) 
     
-    def doMove(self, x, y, notReallyDead = False):
-        """ Does a move no matter what, Can be temporary for computer checks """
+    def doMove(self, x, y, notReallyDead=False):
+        
+        """ Does a move no matter what, can be temporary for computer checks """
+        
         board[self.y][self.x] = PIECE_EMPTY         # It just moved from here, so it's now empty
-        diff_X = x - self.x                         # Where it is moving, for jump checking
-        diff_Y = y - self.y                         # ^
-        self.x = x                                  # Set the piece location to the new x,y
-        self.y = y                                  # ^
+        diff_X = x - self.x                         # Where it is moving, for jump checking, X coordinate 
+        diff_Y = y - self.y                         # Same as above, Y Coordinate
+        self.x = x                                  # Set the piece location to the new x, y; X coordinate
+        self.y = y                                  # Same as above, Y Coordinate
         board[y][x] = self.color                    # Set the new board location
         if abs(diff_X)==2:                          # If it jumped something
             jump_X = x - (diff_X / abs(diff_X))
             jump_Y = y - (diff_Y / abs(diff_Y))
             board[jump_Y][jump_X] = PIECE_EMPTY
-            killedPiece = getPiece(jump_X, jump_Y, forceColor = self.otherColor)
+            killedPiece = getPiece(jump_X, jump_Y, forceColor=self.otherColor)
             if killedPiece == None:
                 print "WTF do",jump_X,jump_Y,self.otherColor
                 return
@@ -202,14 +222,16 @@ class piece:
             killedPiece.killed = True
             
     def undoMove(self,x,y, notReallyDead = False):
+        
         """ Same as doMove, except replaces any piece it jumped """
-        board[self.y][self.x] = PIECE_EMPTY
-        diff_X = x - self.x
-        diff_Y = y - self.y
-        self.x = x
-        self.y = y
-        board[y][x] = self.color
-        if abs(diff_X)==2: #did it jump something
+        
+        board[self.y][self.x] = PIECE_EMPTY     # It just moved from here, so it's now empty
+        diff_X = x - self.x                     # Where it is moving, for jump checking, X coordinate
+        diff_Y = y - self.y                     # Same as above, Y coordinate
+        self.x = x                              # Set the piece location to the new x, y; X coordinate
+        self.y = y                              # Same as above, Y coordinate
+        board[y][x] = self.color                # If it jumped something
+        if abs(diff_X)==2: 
             jump_X = x - (diff_X/2)
             jump_Y = y - (diff_Y/2)
             board[jump_Y][jump_X] = self.otherColor
@@ -227,6 +249,7 @@ class piece:
             killedPiece.killed = False
     
     def canMoveAnywhere(self):
+        
         """ Checks all around the piece in every direction to determine if movement is possible """
         
         for check_X,check_Y in possibleMoves:
@@ -238,7 +261,9 @@ class piece:
         return False
     
     def makeMoveList(self):
-        """ Creates a list of moves for the AI through doMove and undoMove) to use """
+        
+        """ Creates a list of moves for the AI to use (through doMove and undoMove) """
+        
         list_of_moves = []
         for check_X,check_Y in possibleMoves:
             if self.x + check_X > realBoard_X or self.x + check_X < 1 or self.y + check_Y > realBoard_Y or self.y + check_Y < 1:
@@ -274,61 +299,84 @@ class piece:
         return list_of_moves
     
     def evaluate(self):
-        """ Evaluates the current piece's position"""
-        num = 0
-        if self.canMoveAnywhere():
-            num += 1
-        else:
-            num -= 5
+        
+        """ 
+            Evaluates the current piece's position and determines the best move for the AI to do. 
+            Whichever move results in the highest returned value is determined to be the 
+            'best move' and the AI proceeds to do that move. The evaluate functions relies 
+            heavily on the doMove and undoMove functions to work properly. The AI gets the 
+            values by doing all the moves available to it (determined by the depth of the minimax 
+            function) then undoing all of those moves then it does the one move that is the best. 
             
-        num += 15*self.justJumped
+        """
+        
+        numberValue = 0
+        if self.canMoveAnywhere():  # If it can move anywhere if the move gains 1 point
+            numberValue += 1
+        else:                       # If not the move loses 5 points
+            numberValue -= 5
+            
+        numberValue += 15*self.justJumped   # The move is multiplied by 15 times its previous jump if there is another jump available (double jump)
         
         if not self.king:
             if self.red:
                 if self.y == 1:
-                    num += 10
+                    numberValue += 10   # If the Y coordinate of a red piece is 1 it gains 10 points because that means it will be getting a king
             else:
-                if self.y == 8:
-                    num += 10
+                if self.y == 8:         # Same as above except for black pieces
+                    numberValue += 10
         if self.king:
-            #find direction of 
-            num += 1
-        for i in range(0,len(movesWithoutJumps)):
-            near_X, near_Y = movesWithoutJumps[i]
-            if board[self.y + near_Y][self.x + near_X] == self.otherColor:
-                next_X, next_Y = movesWithoutJumps[i-2]
-                if board[self.y + next_Y][self.x + next_X] == PIECE_EMPTY:
-                    num -= 13
+            numberValue += 1
+        for i in range(0,len(movesWithoutJumps)):                           # Going through the list of moves that can not jump ie (1, 1) ect
+            near_X, near_Y = movesWithoutJumps[i]                           # near_X and near_Y are the respective coordinates of the proximity of moves without jumps to the piece
+            if board[self.y + near_Y][self.x + near_X] == self.otherColor:  # If the pieces coordinate + the proximity coordinate equals the coordinates of a piece with a different color 
+                next_X, next_Y = movesWithoutJumps[i-2]                     # next_X and next_Y are the X and Y coordinate of the first two items in the movesWithoutJumps list (Up right and Down right)
+                if board[self.y + next_Y][self.x + next_X] == PIECE_EMPTY:  # If the coordinates + the next coordinates are equal to an empty space
+                    numberValue -= 13                                       # The value goes down 13 because that means the piece has a high chance of being jumped
                  
         if not self.red:
-            num = -num
-        return num
+            numberValue = -numberValue
+        return numberValue
 
-## ========================================================================= ##        
-## End of the piece class                                                    ##
-## ========================================================================= ##   
-    
+        # Add more proximity checks, like one to see if moving a piece will result in the other side getting a king
+        
 class move:
+    
+    """ 
+    
+        Basic move structure as applied to the checkers board. 
+        Takes moves and then evaluates them by calling doMove and undoMove.  
+        
+    """
+    
     def __init__(self, source_X, source_Y, dest_X, dest_Y, *others):
-        self.source_X = source_X
-        self.source_Y = source_Y
-        self.dest_X = dest_X
-        self.dest_Y = dest_Y
-        self.others = others
+        
+        """ Constructor for the move class""" 
+        
+        self.source_X = source_X    # The X coordinate before a move
+        self.source_Y = source_Y    # Same as above; Y Coordinate
+        self.dest_X = dest_X        # The X coordinate after a move
+        self.dest_Y = dest_Y        # Same as above; Y Coordinate
+        self.others = others        # A list of any extra jumps
         if len(others) > 0:
             self.others = others[0]
-    def do(self, notReallyDead = False):
+            
+    def do(self, notReallyDead=False):
+        
+        """ For doing moves """
+        
         p = getPiece(self.source_X, self.source_Y)
         p.doMove(self.dest_X,self.dest_Y, notReallyDead)
         for other in self.others:
-            #print self.others
             if len(other) > 1:
                 p.doMove(other[0], other[1], notReallyDead)
             
-    def undo(self,fake = False):
+    def undo(self,fake=False):
+        
+        """ For undoing moves """
+        
         p = None
         if len(self.others)>0:
-            #print self.others
             other = self.others[-1]
             if len(other) > 1:
                 p = getPiece(other[0],other[1])
@@ -342,12 +390,17 @@ class move:
         
         
         p.undoMove(self.source_X, self.source_Y,fake)
-
-## ========================================================================= ##        
-## End of the move class                                                     ##
-## ========================================================================= ##
-    
+   
 def miniMax(p,depth):
+    
+    """ 
+        
+        The main miniMax algorithm, must enter the depth that you want 
+        it to go to in the doComputer function, the depth entered 
+        must be an odd number. 
+        
+    """
+    
     if depth == 0:
         winCheck = checkPieces(p.color)
         if winCheck[0]:
@@ -367,7 +420,7 @@ def miniMax(p,depth):
     if p.red:
         bestValue = -INFINITY
     moves = p.makeMoveList()
-    if len(moves)==0:
+    if len(moves)==0:   # No moves in the list
         if p.red:
             return -INFINITY,
         return INFINITY,
@@ -384,61 +437,58 @@ def miniMax(p,depth):
             if value < bestValue:
                 bestValue = value
                 bestMove = move
-    return bestValue, bestMove
+    return bestValue, bestMove  
 
-def miniMax2(depth):
-    allMoves = []
-    realBestMove = None
-    realBestValue = -sys.maxint
-    for p in pieces:
+def depthMiniMax(depth):
+    
+    """ Allows the main miniMax function to reach a depth greater than 1 """
+    
+    allMoves = []                   # Every possible move made by the move list
+    realBestMove = None             # The actual and real best move
+    realBestValue = -sys.maxint     # The smallest number that Python can possibly display
+    for p in pieces:                # Looping through all the pieces
         if p.red and not p.killed:
-            #do red moves
             moves = p.makeMoveList()
-            movecounter = 0
-            perMove = []
-            perMoveValue = []
+            moveCounter = 0     # The number of moves made
+            perMove = []        # A list moves and the best evaluated value associated with them
+            perMoveValue = []   # A list of values, no moves included
             for move in moves:
                 tempDepth = depth
-                otherMoves = []
+                otherMoves = [] 
                 move.do(True)
-                perMoveValue.append(0) 
-                perMove.append(0)
-                perMoveValue[movecounter] = miniMax(p,0)[0]
-                #check depth moves...
+                perMoveValue.append(0) # Adds a 0 to the list so that it is not empty
+                perMove.append(0)      # Same as above
+                perMoveValue[moveCounter] = miniMax(p,0)[0] # The list perMoveCounter[0 -> it has not changed from its inital value] = miniMax(p, 0)[0] -> which means it equals 0
                 while tempDepth > 1:
-                    perDepth = []
+                    perDepth = []   # A list of the depths of the miniMax function ie [7, 6, 5, 4, 3, 2, 1, 0]
                     bestValue = -INFINITY
-                    if tempDepth%2==1: #black
+                    if tempDepth%2==1: # If it is a black piece (even depths are black)
                         bestValue = INFINITY
-                    bestMove = None
+                    bestMove = None    # No bestMove if it is black 
                     for p2 in pieces:
-                        if not p2.killed and not p2.notReallyDead and p2.red == (tempDepth%2==0):#start with black
-                            #print tempDepth
-                            perDepth.append((miniMax(p2,1),p2.color))
-                    #print bestvalues2
-                    for blah in perDepth:
-                        blah2 = blah[0]
-                        if blah[1] == PIECE_RED and blah2[0] > bestValue:#red
-                            bestValue = blah2[0]
-                            bestMove = blah2[1]
-                        elif blah[1] == PIECE_BLACK and blah2[0] < bestValue:#black
-                            bestValue = blah2[0]
-                            bestMove = blah2[1]
-                            
-                    perMove[movecounter] = (bestValue,move)
-                    perMoveValue[movecounter] += bestValue
+                        if not p2.killed and not p2.notReallyDead and p2.red == (tempDepth%2==0): # Starts with black
+                            perDepth.append((miniMax(p2,1), p2.color)) 
+                    for depthList in perDepth:
+                        theMove = depthList[0]
+                        if depthList[1] == PIECE_RED and theMove[0] > bestValue: # Red piece
+                            bestValue = theMove[0]
+                            bestMove = theMove[1]
+                        elif depthList[1] == PIECE_BLACK and theMove[0] < bestValue: # Black piece
+                            bestValue = theMove[0]
+                            bestMove = theMove[1]      
+                    perMove[moveCounter] = (bestValue,move) # Adds the bestValue and the move associated with it to a list
+                    perMoveValue[moveCounter] += bestValue  # Adds just the bestValue to a list
                     if bestMove != None:
                         bestMove.do(True)
-                        otherMoves.append(bestMove)
-                    tempDepth -= 1
-                while len(otherMoves) > 0:
+                        otherMoves.append(bestMove) # Puts the bestMoves found in a new list
+                    tempDepth -= 1  # Subtract the depth by one every iteration
+                while len(otherMoves) > 0:      # Until the list of otherMoves has nothing in it the moves are undone from the list and in the game
                     otherMoves.pop().undo(True)
                 move.undo(True)
-                movecounter += 1
-            #end of moves
+                moveCounter += 1  # End of the master move and depth loop
             bestValue = -sys.maxint
             bestIndex = -1
-            for i in range(movecounter):
+            for i in range(moveCounter):
                 value = perMoveValue[i]
                 #print value
                 if value > bestValue:#red
@@ -446,25 +496,20 @@ def miniMax2(depth):
                     bestIndex = i
             if bestIndex != -1:
                 allMoves.append((bestValue,perMove[bestIndex][1]))
-                
-                
-    #end of pieces
-            
-    #print allMoves
     for value in allMoves:
         if value[0] > realBestValue:
             realBestValue = value[0]
             realBestMove = value[1]
-            
-    #print "final: ",realBestValue
-    return realBestMove
-            #return best move back to doComputer()
+    return realBestMove  #return best move back to doComputer()
+           
             
 
         
 
 def resetBoard():
+    
     """ Redraw's the board, using the BitMap """
+    
     global board
     board = [                        ## 1 is red piece, 2 is black piece, 9 is the border, this is the BitMap 
             [9,9,9,9,9,9,9,9,9,9],
@@ -478,22 +523,13 @@ def resetBoard():
             [9,1,0,1,0,1,0,1,0,9],
             [9,9,9,9,9,9,9,9,9,9]
             ]
-    """board = [                        ## 1 is red piece, 2 is black piece, 9 is the border, this is the BitMap 
-            [9,9,9,9,9,9,9,9,9,9],
-            [9,0,2,0,2,0,2,0,2,9],
-            [9,0,0,2,0,0,0,0,0,9],
-            [9,0,0,0,0,0,2,0,0,9],
-            [9,0,0,0,0,0,0,0,0,9],
-            [9,0,0,0,0,0,2,0,0,9],
-            [9,0,0,0,0,0,0,1,0,9],
-            [9,0,0,0,0,0,0,0,0,9],
-            [9,0,0,0,0,0,0,0,0,9],
-            [9,9,9,9,9,9,9,9,9,9]
-            ]"""
+    
 resetBoard()
 
 def resetPieces():
+    
     """ Resets the piece array to the board """
+    
     global pieces, selectedPiece
     selectedPiece = None
     pieces = []
@@ -505,8 +541,11 @@ def resetPieces():
             elif boardcheck == PIECE_RED:
                 pieces.append(piece(x, y, True))
 resetPieces() 
+
 def resetGame():
+    
     """ Allow's the game to be reset"""
+    
     global gameOver,redTurn,computerPlayer
     gameOver = False
     redTurn = False
@@ -515,7 +554,9 @@ def resetGame():
     resetPieces()      
           
 def getPiece(x, y, checkfake = False , forceColor = None):
+    
     """ Determines which pieces are on the board and where they are """
+    
     for p in pieces:
         if p.x == x and p.y == y:      
             if not p.killed and (not p.notReallyDead or checkfake):  
@@ -524,23 +565,35 @@ def getPiece(x, y, checkfake = False , forceColor = None):
     return None
 
 def startsolo():
+    
     """ Solo game start button, against an AI Opponent. In the menu. """
+    
     global computerPlayer, gameStarted
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
+    
 def startmulti():
+    
     """ Multiplayer game mode start button. In the menu."""
+    
     global gameStarted
     if gameOver or computerPlayer:
         resetGame()
     gameStarted = True
+    
 def exitbutton():
+    
     """ Button used to exit the game. In the menu."""
+    
     pygame.quit()
     sys.exit()
+    
 def undobutton():
+    
+    """ Undoes moves from both sides using undoMove """
+    
     global moveList
     if len(moveList) <= 0:
         print "idiot"
@@ -549,14 +602,19 @@ def undobutton():
     lastmove.undo()
 
 class button:
+    
     """ Used for the menu """
+    
     def __init__(self,x,y,w,h,f):
+        
         """ Constructor for button class """
+        
         self.x = x  # X-coord for the button's box
         self.y = y  # Y=coord for the button's box
         self.w = w  # Width of the button's box
         self.h = h  # Height of the button's box
         self.f = f  # Name on the button
+        
     def inside(self,x,y):
         """    """
         if x >= self.x and x < self.x+self.w and y >= self.y and y < self.y+self.h:
@@ -567,8 +625,13 @@ buttonlist = [button(286,355,173,103,startsolo),button(527,353,171,105,startmult
 undobutton = button(0,0,boardOffSet_X,board_YRES,undobutton)
    
 def processClick(pos):
-    """ Overall click procesing function, makes sure every move is legal
-        === Utilizes getpiece and canmove functions """
+    
+    """ 
+    
+        Overall click processing function, makes sure every move is legal.
+        Utilizes getPiece and canMove functions 
+        
+    """
     global selectedPiece, redTurn, moveList
     x, y = pos
     if not gameStarted:
@@ -584,10 +647,6 @@ def processClick(pos):
     gridx = ((x-boardOffSet_X) / CELL_X) + 1
     gridy = (y / CELL_Y) + 1
     realPiece = getPiece(gridx, gridy) # The coordinates of the piece is equal to realPiece
-    #print board[gridy][gridx]
-    #for p in pieces:
-    #    if p.x == gridx and p.y == gridy:
-    #        print p.color,"killed:",p.killed,"fakedead:",p.notReallyDead
     if selectedPiece != None:
             if selectedPiece.x == gridx and selectedPiece.y == gridy:
                 selectedPiece = None
@@ -599,11 +658,9 @@ def processClick(pos):
             if canmove[0]:
                 cx = canmove[1]
                 cy = canmove[2]
-                #moveList.append(move(selectedPiece.x,selectedPiece.y,cx,cy))
                 selectedPiece.doMove(cx,cy)
                 
-                if canmove[3]:
-                    #check if it can jump again... four directions to check...
+                if canmove[3]: # Checks to see if it can jump again - four directions to check.
                     for checkx in [2, -2]:
                         for checky in [2, -2]:
                             if cx + checkx > realBoard_X or cx + checkx < 1 or cy + checky > realBoard_Y or cy + checky < 1:
@@ -611,39 +668,23 @@ def processClick(pos):
                             canmove = selectedPiece.canMove(checkx, checky)
                             if canmove[0] and canmove[3]:
                                 return
-                            
                 selectedPiece = None
                 checkPieces()
                 if computerPlayer:
-                    #doComputer()
-                    doComputer2()
+                    doComputer()
                     return
                 redTurn = not redTurn                         
-                
             return
     if realPiece != None:
         if redTurn == realPiece.red:
             selectedPiece = realPiece
        
 def doComputer():
-    bestvalues = []
-    bestvalue = -INFINITY
-    realbestmove = None
-    for p in pieces:
-        if not p.killed and p.red:
-            bestvalues.append(miniMax(p,1))
-    for blah in bestvalues:
-        if blah[0] > bestvalue:
-            bestvalue = blah[0]
-            realbestmove = blah[1]
-    if realbestmove != None:
-        realbestmove.do()
-    checkPieces()
     
-def doComputer2():
+    """ Activates the computer Player """
+    
     global selectedPiece, computerState,computerMove, redTurn
-    bestmove = miniMax2(5)
-    #bestmove.do()
+    bestmove = depthMiniMax(7)  # The depth which the miniMax function will search to - must be an odd number
     if bestmove != None:
         bestPiece = getPiece(bestmove.source_X,bestmove.source_Y)
         computerMove = bestmove
@@ -653,7 +694,9 @@ def doComputer2():
     else: print "whaaaat"
                  
 def drawBoard():
+    
     """ Draw's the checker board and the indicator for selection over a selected piece """
+    
     color = RED
     for y in range(0, 8):
         for x in range(0, 8):
@@ -666,7 +709,9 @@ def drawBoard():
             pygame.draw.rect(windowSurface, color, ((x * CELL_X)+boardOffSet_X, y * CELL_Y, x + CELL_X, y + CELL_Y)) 
        
 def drawPieces():
+    
     """ Draw's the pieces onto the board """ 
+    
     for p in pieces:
         if p.killed:
             continue
@@ -675,14 +720,21 @@ def drawPieces():
         windowSurface.blit(p.getPiecePic(), (screenx, screeny, screenx + CELL_X, screeny + CELL_Y))
         
 def drawMenu():
+    
     """ Draw's a menu picture """
+    
     windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSet_X, board_YRES))
     
 def eventCheck(event):
-    """ Checks for input from user.
-        === If mousebutton is clicked utilizes processClick function
-        === If r is pressed resets the game
-        === If escape is pressed exits the game and returns user to menu """
+    
+    """ 
+        Checks for input from user.
+        ==> If mousebutton is clicked utilizes processClick function
+        ==> If r is pressed resets the game
+        ==> If escape is pressed exits the game and returns user to menu
+         
+    """
+        
     global gameOver,gameStarted
     if event.type == MOUSEBUTTONDOWN:
         processClick(event.pos)
@@ -693,8 +745,14 @@ def eventCheck(event):
             gameStarted = False
 
 def checkPieces(color = None):
-    """ Checks for various attributes of pieces after each move 
-        Also Checks for winners and determines the winner or if there is a tie."""
+    
+    """ 
+    
+        Checks for various attributes of pieces after each move 
+        Also Checks for winners and determines the winner or if there is a tie.
+        
+    """
+    
     global pieces, gameOver, playerWon
     redcanmove = False
     blackcanmove = False
@@ -735,7 +793,9 @@ def checkPieces(color = None):
             
                         
 def drawtext():
-    """ Draw's the text for who's turn it is and display's the winner of the game """
+    
+    """ Draw's the text for who's turn it is, the FPS, and display's the winner of the game """
+    
     if gameOver:
         text = font1.render(playerWon + " has won the game", True, WHITE)
         textRect = text.get_rect()
@@ -760,28 +820,11 @@ def drawtext():
     textRect.centerx = boardOffSet_X/2
     textRect.centery = board_YRES/2
     windowSurface.blit(text, textRect)
-def tests():
-    global board
-    board = [ 
-                 [0,0,0,0],
-                 [0,1,0,0],
-                 [0,0,2,0],
-                 [0,0,0,0],
-                 ]
-    resetPieces()
-    blackpiece = pieces[0]
-    redpiece = pieces[1]
-    print "black piece is at:",blackpiece.x,blackpiece.y,blackpiece.killed
-    print "red piece is at:",redpiece.x,redpiece.y
-    redpiece.doMove(0,0,True)
-    print "black piece is at:",blackpiece.x,blackpiece.y,blackpiece.killed,blackpiece.notReallyDead
-    print "red piece is at:",redpiece.x,redpiece.y
-    if board[0][0] == 2 and board[1][1] == 0:
-        print "yay"
-    else:
-        print "fail",board[0][0],board[1][1]
 
 def updateComp():
+    
+    """ Slows the computer down so that is not super fast - increases playability """
+    
     global selectedPiece, computerMove, computerTimer, redTurn, computerState
     if computerState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
@@ -797,13 +840,16 @@ def updateComp():
                 computerMove = None
                 computerState = 0
                 redTurn = False
-                checkPieces()
-                
-                
+                checkPieces()         
 
 def updateGame():
-    """ All functions that update the game are encapuslated here. 
-        Starts updated when game starts or show's the menu on startup"""
+    
+    """ 
+    
+        All functions that update the game are encapsulated here. 
+        Starts updated when game starts or show's the menu on startup
+        
+    """
     mainClock.tick()
     if gameStarted:
         updateComp()
@@ -813,11 +859,7 @@ def updateGame():
     else:
         drawMenu()
 
-testing = False
-if testing:
-    tests()
-    sys.exit()
-## Main Game Loop ##
+## ============ Main Game Loop ============= ##
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
