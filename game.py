@@ -120,13 +120,6 @@ redKingStretched = pygame.transform.scale(redKingImage, (CELL_X, CELL_Y))       
 blackKingStretched = pygame.transform.scale(blackKingImage, (CELL_X, CELL_Y))   # Black king piece
 ## ================================================================================================ ##
 
-## ===================================================================== ##
-## Controls most aspects that have to do with the pieces on the          ##
-## board. Including displaying pieces, determining if movement is legal, ##
-## aspects of the AI allowing it to do and undo moves, and the evaluate  ##
-## function                                                              ##
-## ===================================================================== ##
-
 class piece:
     
     """ 
