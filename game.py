@@ -8,35 +8,45 @@
 ## -> Start: 11-5-11                                                ##
 ## -> Version 1: 11-6-11                                            ##
 ## -> Version 2: Pictures + Menu: 11-7-11                           ##
-## -> Version 3: MiniMax added and refined 12-19-11 -->             ##
+## -> Version 3: MiniMax added and refined 12-19-11 --> 12-23-11    ## 
+## -> Version 4: Added comments, refined code for readability       ##
+##    12-24-11                                                      ##
 ## ==========================TODO=================================  ##
-## -> Need to write Minimax, NegaScout,and Alpha-Beta Algorithms.   ##
-## -> Rewrite code so its better, more efficient, more OOP          ##
+## -> Need to write NegaScout, and Alpha-Beta Algorithms.           ##
 ## -> Create a better GUI for the menu and in game playing          ##
 ## -> Make it play against itself                                   ##
 ## -> Have a way to record statistics from the game                 ##
 ## -> Compartmentalize the code into different files                ##
+## ================================================================ ##
+
+## ======== Imports ========= ##
 import pygame, sys
 from pygame.locals import *
+## ========================== ##
 
-pygame.init()
+pygame.init() # Initializes pygame
 
-mainClock = pygame.time.Clock()
+mainClock = pygame.time.Clock() # Game clock: used for slowing down the AI opponent and tracks speed of functions
 
-INFINITY = 99999999
+INFINITY = 99999999 # Constant used for the AI algorithms
 
-## Size of the window ##
-boardOffSet_X = 400
-board_XRES = 1000
-board_YRES = 1000
+## ======================================= Size of the window ====================================== ##
+boardOffSet_X = 400  # The extra space on the right - used for displaying information to the user
+board_XRES = 1000    # Length of the board   
+board_YRES = 1000    # Width of the board
+## ================================================================================================= ##
 
+## ================================== Window Surface ==================================== ##
 windowSurface = pygame.display.set_mode((board_XRES + boardOffSet_X, board_YRES), 0, 32)
 pygame.display.set_caption('Checkers!')
+## ====================================================================================== ##
 
+## ============================= Fonts ================================= ##
 font1 = pygame.font.SysFont(None, 60, bold = True, italic = True)
 font2 = pygame.font.SysFont(None, 36)
+## ===================================================================== ##
 
-## Initializes Colors ##
+## ==== Initializes Colors ==== ##
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -44,20 +54,23 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 GOLD = (255, 215, 0)
 ORANGE = (255, 128, 0)
+## ============================ ##
 
-## Board Variables ##
+## ======================================== Board Variables ============================================= ##
 board_X = 10                        # horizontal size of the BitMap
 board_Y = 10                        # vertical size of the BitMap
 realBoard_X = 8                     # Real size of the BitMap, horizontally, excluding the border (9's)
 realBoard_Y = 8                     # Real size of the BitMap, vertically, excluding the border(9's)
 CELL_X = board_XRES / realBoard_X   # Length of a single checker square
 CELL_Y = board_YRES / realBoard_Y   # Height of a single checker square
+## ====================================================================================================== ##
 
-## Piece constants based on BitMap ##
+## ========= Piece constants based on BitMap ============= ##
 PIECE_EMPTY = 0     # Nothing drawn onto board
 PIECE_RED = 1       # Red Piece
 PIECE_BLACK = 2     # Black Piece
 PIECE_VOID = 9      # No piece drawn -- Border of BitMap
+## ======================================================= ##
 
 ## =================================== Move Lists ============================================= ##
 ## Each tuple represents a move that the pieces are allowed to make. Up and down                ##
@@ -85,8 +98,8 @@ playerWon = "Winner"    # Keeps track of the winner
 redTurn = False         # Turn feature
 selectedPiece = None    # Shows if there is a piece selected
 computerPlayer = False  # Makes the computer play
-computerstate = 0
-computermove = None
+computerState = 0       # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
+computerMove = None     # Assigns the best move to the computer that the computer will then do
 computerTimer = 0
 moveList = []           # Stores lists of moves that the AI uses
 ## ================================================================ ##
@@ -628,14 +641,14 @@ def doComputer():
     checkPieces()
     
 def doComputer2():
-    global selectedPiece, computerstate,computermove, redTurn
+    global selectedPiece, computerState,computerMove, redTurn
     bestmove = miniMax2(5)
     #bestmove.do()
     if bestmove != None:
         bestPiece = getPiece(bestmove.source_X,bestmove.source_Y)
-        computermove = bestmove
+        computerMove = bestmove
         selectedPiece = bestPiece
-        computerstate = 1
+        computerState = 1
         redTurn = True
     else: print "whaaaat"
                  
@@ -769,20 +782,20 @@ def tests():
         print "fail",board[0][0],board[1][1]
 
 def updateComp():
-    global selectedPiece, computermove, computerTimer, redTurn, computerstate
-    if computerstate > 0 and not gameOver:
+    global selectedPiece, computerMove, computerTimer, redTurn, computerState
+    if computerState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
-        if computerstate == 1:
+        if computerState == 1:
             if computerTimer >= 1000:
-                computermove.do()
-                computerstate = 2
+                computerMove.do()
+                computerState = 2
                 computerTimer = 0
-        if computerstate == 2:
+        if computerState == 2:
             if computerTimer >= 500:
                 selectedPiece = None
                 computerTimer = 0
-                computermove = None
-                computerstate = 0
+                computerMove = None
+                computerState = 0
                 redTurn = False
                 checkPieces()
                 
