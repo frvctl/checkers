@@ -216,9 +216,13 @@ class piece:
                 print "WTF do",jump_X,jump_Y,self.otherColor
                 return
             if notReallyDead:
-                self.justJumped += 1
+                if self.king:
+                    self.justJumped += 2
+                else: 
+                    self.justJumped += 1
                 killedPiece.notReallyDead = True
                 return
+            
             killedPiece.killed = True
             
     def undoMove(self,x,y, notReallyDead = False):
@@ -237,7 +241,10 @@ class piece:
             board[jump_Y][jump_X] = self.otherColor
             killedPiece = getPiece(jump_X, jump_Y, notReallyDead, forceColor = self.otherColor)
             if notReallyDead:
-                self.justJumped -= 1
+                if self.king:
+                    self.justJumped -= 2
+                else:
+                    self.justJumped -= 1
                 if killedPiece == None:
                     temp = getPiece(jump_X, jump_Y, notReallyDead)
                     if temp!=None:
@@ -316,7 +323,7 @@ class piece:
         else:                       # If not the move loses 5 points
             numberValue -= 5
             
-        numberValue += 15*self.justJumped   # The move is multiplied by 15 times its previous jump if there is another jump available (double jump)
+        numberValue += 15*self.justJumped   # How many it jumped
         
         if not self.king:
             if self.red:
@@ -490,13 +497,12 @@ def depthMiniMax(depth):
             bestIndex = -1
             for i in range(moveCounter):
                 value = perMoveValue[i]
-                #print value
-                if value > bestValue:#red
+                if value > bestValue:   # Red Piece
                     bestValue = value
                     bestIndex = i
             if bestIndex != -1:
                 allMoves.append((bestValue,perMove[bestIndex][1]))
-    for value in allMoves:
+    for value in allMoves: 
         if value[0] > realBestValue:
             realBestValue = value[0]
             realBestMove = value[1]
@@ -590,7 +596,7 @@ def exitbutton():
     pygame.quit()
     sys.exit()
     
-def undobutton():
+def undoButton():
     
     """ Undoes moves from both sides using undoMove """
     
@@ -598,8 +604,8 @@ def undobutton():
     if len(moveList) <= 0:
         print "idiot"
         return
-    lastmove = moveList.pop()
-    lastmove.undo()
+    lastMove = moveList.pop()
+    lastMove.undo()
 
 class button:
     
@@ -622,7 +628,7 @@ class button:
         return False
     
 buttonlist = [button(286,355,173,103,startsolo),button(527,353,171,105,startmulti),button(405,695,181,82,exitbutton)]
-undobutton = button(0,0,boardOffSet_X,board_YRES,undobutton)
+undoButton = button(0,0,boardOffSet_X,board_YRES,undoButton)
    
 def processClick(pos):
     
@@ -639,34 +645,38 @@ def processClick(pos):
             if button.inside(x,y):
                 button.f()
         return
-    if undobutton.inside(x,y):
-        undobutton.f()
+    if undoButton.inside(x,y):
+        undoButton.f()
     if gameOver:
         return
 
-    gridx = ((x-boardOffSet_X) / CELL_X) + 1
-    gridy = (y / CELL_Y) + 1
-    realPiece = getPiece(gridx, gridy) # The coordinates of the piece is equal to realPiece
+    grid_X = ((x-boardOffSet_X) / CELL_X) + 1
+    grid_Y = (y / CELL_Y) + 1
+    realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
+    #print board[gridy][gridx]
+    for p in pieces:
+        if p.x == grid_X and p.y == grid_Y:
+            print p.color,"killed:",p.killed,"fakedead:",p.notReallyDead
     if selectedPiece != None:
-            if selectedPiece.x == gridx and selectedPiece.y == gridy:
+            if selectedPiece.x == grid_X and selectedPiece.y == grid_Y:
                 selectedPiece = None
                 return
             elif realPiece != None:
                 if redTurn == realPiece.red:
                     selectedPiece = realPiece # The selected piece is now equal to realPiece 
-            canmove = selectedPiece.canMove((gridx) - (selectedPiece.x), (gridy) - (selectedPiece.y))
-            if canmove[0]:
-                cx = canmove[1]
-                cy = canmove[2]
+            canMove = selectedPiece.canMove(grid_X - selectedPiece.x, grid_Y - selectedPiece.y)
+            if canMove[0]:
+                cx = canMove[1]
+                cy = canMove[2]
                 selectedPiece.doMove(cx,cy)
                 
-                if canmove[3]: # Checks to see if it can jump again - four directions to check.
-                    for checkx in [2, -2]:
-                        for checky in [2, -2]:
-                            if cx + checkx > realBoard_X or cx + checkx < 1 or cy + checky > realBoard_Y or cy + checky < 1:
+                if canMove[3]: # Checks to see if it can jump again - four directions to check.
+                    for check_X in [2, -2]:
+                        for check_Y in [2, -2]:
+                            if cx + check_X > realBoard_X or cx + check_X < 1 or cy + check_Y > realBoard_Y or cy + check_Y < 1:
                                 continue
-                            canmove = selectedPiece.canMove(checkx, checky)
-                            if canmove[0] and canmove[3]:
+                            canMove = selectedPiece.canMove(check_X, check_Y)
+                            if canMove[0] and canMove[3]:
                                 return
                 selectedPiece = None
                 checkPieces()
@@ -684,10 +694,10 @@ def doComputer():
     """ Activates the computer Player """
     
     global selectedPiece, computerState,computerMove, redTurn
-    bestmove = depthMiniMax(7)  # The depth which the miniMax function will search to - must be an odd number
-    if bestmove != None:
-        bestPiece = getPiece(bestmove.source_X,bestmove.source_Y)
-        computerMove = bestmove
+    bestMove = depthMiniMax(7)  # The depth which the miniMax function will search to - must be an odd number
+    if bestMove != None:
+        bestPiece = getPiece(bestMove.source_X,bestMove.source_Y)
+        computerMove = bestMove
         selectedPiece = bestPiece
         computerState = 1
         redTurn = True
@@ -715,9 +725,9 @@ def drawPieces():
     for p in pieces:
         if p.killed:
             continue
-        screenx = ((p.x - 1) * CELL_X) + boardOffSet_X
-        screeny = (p.y - 1) * CELL_Y
-        windowSurface.blit(p.getPiecePic(), (screenx, screeny, screenx + CELL_X, screeny + CELL_Y))
+        screen_X = ((p.x - 1) * CELL_X) + boardOffSet_X
+        screen_Y = (p.y - 1) * CELL_Y
+        windowSurface.blit(p.getPiecePic(), (screen_X, screen_Y, screen_X + CELL_X, screen_Y + CELL_Y))
         
 def drawMenu():
     
@@ -744,7 +754,7 @@ def eventCheck(event):
         if event.key == 27:
             gameStarted = False
 
-def checkPieces(color = None):
+def checkPieces(color=None):
     
     """ 
     
@@ -754,42 +764,42 @@ def checkPieces(color = None):
     """
     
     global pieces, gameOver, playerWon
-    redcanmove = False
-    blackcanmove = False
+    redCanMove = False
+    blackCanMove = False
     for p in pieces:
         if p.killed:
             continue
         if p.red:
             if color == None and p.y == 1:
                 p.king = True
-            if not redcanmove:
-                redcanmove = p.canMoveAnywhere()
+            if not redCanMove:
+                redCanMove = p.canMoveAnywhere()
         else:
             if color == None and p.y == 8:
                 p.king = True
-            if not blackcanmove:
-                blackcanmove = p.canMoveAnywhere()
-    if redcanmove and not blackcanmove and not redTurn:
+            if not blackCanMove:
+                blackCanMove = p.canMoveAnywhere()
+    if redCanMove and not blackCanMove and not redTurn:
         gameOver = True
         playerWon = "Red"
-    elif blackcanmove and not redcanmove and (redTurn or computerPlayer):
+    elif blackCanMove and not redCanMove and (redTurn or computerPlayer):
         gameOver = True
         playerWon = "Black"
-    elif not blackcanmove and not redcanmove:
+    elif not blackCanMove and not redCanMove:
         gameOver = True
         playerWon = "Tie"
     if color != None:
-        someonewon = gameOver
-        currentplayerwon = False
+        winnerFound = gameOver
+        currentPlayerWon = False
         gameOver = False
-        if someonewon:
+        if winnerFound:
             if playerWon == "Tie":
-                currentplayerwon = True
+                currentPlayerWon = True
             elif color == PIECE_RED and playerWon == "Red":
-                currentplayerwon = True
+                currentPlayerWon = True
             elif color == PIECE_BLACK and playerWon == "Black":
-                currentplayerwon = True
-        return someonewon,currentplayerwon
+                currentPlayerWon = True
+        return winnerFound, currentPlayerWon
             
                         
 def drawtext():
@@ -804,18 +814,17 @@ def drawtext():
         windowSurface.blit(text, textRect)
         return
     player = "Red"
-    textx = boardOffSet_X/2
-    texty = board_YRES - 40
+    text_X = boardOffSet_X/2
+    text_Y = board_YRES - 40
     if not redTurn:
         player = "Black"
-        texty = 40
+        text_Y = 40
     text = font2.render("It is " + player + "'s turn", True, WHITE)
     textRect = text.get_rect()
-    textRect.centerx = textx
-    textRect.centery = texty
+    textRect.centerx = text_X
+    textRect.centery = text_Y
     windowSurface.blit(text, textRect)
-    
-    text = font2.render("FPS: " + repr(int(mainClock.get_fps())),True,WHITE)
+    text = font2.render("FPS: " + repr(int(mainClock.get_fps())), True, WHITE)
     textRect = text.get_rect()
     textRect.centerx = boardOffSet_X/2
     textRect.centery = board_YRES/2
