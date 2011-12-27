@@ -617,8 +617,6 @@ def undoButton():
     """ Undoes moves from both sides using undoMove """
     
     record.deleteLast().undo(checkKilled=True)
-    lastMove = moveList.pop()
-    lastMove.undo()
 
 class button:
     
@@ -667,9 +665,9 @@ def processClick(pos):
     grid_Y = (y / CELL_Y) + 1
     realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
     #print board[gridy][gridx]
-    for p in pieces:
-        if p.x == grid_X and p.y == grid_Y:
-            print p.color,"killed:",p.killed,"fakedead:",p.notReallyDead
+    #for p in pieces:
+        #if p.x == grid_X and p.y == grid_Y:
+            #print p.color,"killed:",p.killed,"fakedead:",p.notReallyDead
     if selectedPiece != None:
             if selectedPiece.x == grid_X and selectedPiece.y == grid_Y:
                 selectedPiece = None
@@ -679,18 +677,18 @@ def processClick(pos):
                     selectedPiece = realPiece # The selected piece is now equal to realPiece 
             canMove = selectedPiece.canMove(grid_X - selectedPiece.x, grid_Y - selectedPiece.y)
             if canMove[0]:
-                move = canmove[1]
+                move = canMove[1]
                 move.do()
                 #cy = canmove[2]
                 #selectedPiece.doMove(cx,cy)
                 
-                if canmove[2]: # Checks to see if it can jump again - four directions to check.
+                if canMove[2]: # Checks to see if it can jump again - four directions to check.
                     for check_X in [2, -2]:
                         for check_Y in [2, -2]:
-                            if grid_X + checkx > realBoard_X or grid_X + checkx < 1 or grid_Y + checky > realBoard_Y or grid_Y + checky < 1:
+                            if grid_X + check_X > realBoard_X or grid_X + check_X < 1 or grid_Y + check_Y > realBoard_Y or grid_Y + check_Y < 1:
                                 continue
                             canMove = selectedPiece.canMove(check_X, check_Y)
-                            if canmove[0] and canmove[2]:
+                            if canMove[0] and canMove[2]:
                                 return
                 selectedPiece = None
                 checkPieces()
