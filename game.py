@@ -826,7 +826,7 @@ def checkPieces(color=None):
             elif color == PIECE_BLACK and playerWon == "Black":
                 currentPlayerWon = True
         return winnerFound, currentPlayerWon
-    print gameOver,redCanMove,blackCanMove
+    #print gameOver,redCanMove,blackCanMove
     if gameOver:
         record.save()  # saves game into a file
             
