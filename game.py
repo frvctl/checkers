@@ -22,6 +22,7 @@
 ## ======== Imports ========= ##
 import pygame
 import sys
+import pickle
 from pygame.locals import *
 ## ========================== ##
 
@@ -184,10 +185,10 @@ class piece:
             unit_Y = diff_Y / abs(diff_Y)
             if abs(diff_X) > 1:
                 if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, temp_X, temp_Y, True                             # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                    return True, move(self.x,self.y,temp_X,temp_Y) , True                             # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
                 else:                                                             # Else the above falls through - returns False (it cannot move) 
                     return False,                                                 # returns False (it cannot move)  
-            return True, temp_X, temp_Y, False                                    # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (it is not a jump)
+            return True, move(self.x,self.y,temp_X,temp_Y) , False                                    # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (it is not a jump)
         return False,                                                             # Assuming none of the above apply returns False (it cannot move) 
     
     def doMove(self, x, y, notReallyDead=False):
@@ -214,7 +215,7 @@ class piece:
                 return
             killedPiece.killed = True
             
-    def undoMove(self,x,y, notReallyDead = False):
+    def undoMove(self,x,y, notReallyDead = False, checkKilled = False):
         
         """ Same as doMove, except replaces any piece it jumped """
         
@@ -228,7 +229,7 @@ class piece:
             jump_X = x - (diff_X/2)
             jump_Y = y - (diff_Y/2)
             board[jump_Y][jump_X] = self.otherColor
-            killedPiece = getPiece(jump_X, jump_Y, notReallyDead, forceColor = self.otherColor)
+            killedPiece = getPiece(jump_X, jump_Y, notReallyDead, checkKilled, forceColor = self.otherColor)
             if notReallyDead:
                 self.justJumped -= 1
                 if killedPiece == None:
@@ -265,7 +266,7 @@ class piece:
             if checkMove[0]:
                 others = []
                 tempList = []
-                flag = checkMove[3]
+                flag = checkMove[2]
                 last_X = check_X
                 last_Y = check_Y
                 count = 0
@@ -278,7 +279,7 @@ class piece:
                         if self.x + next_X > realBoard_X or self.x + next_X < 1 or self.y + next_Y > realBoard_Y or self.y + next_Y < 1:
                             continue
                         checkMove = self.canMove(next_X, next_Y)
-                        if checkMove[0] and checkMove[3]:
+                        if checkMove[0] and checkMove[2]:
                             last_X = next_X
                             last_Y = next_Y
                             others.append((self.x + next_X, self.y + next_Y))
@@ -363,8 +364,12 @@ class move:
         for other in self.others:
             if len(other) > 1:
                 p.doMove(other[0], other[1], notReallyDead)
+
+        if not notReallyDead:
+            record.add(self)
+        
             
-    def undo(self,fake=False):
+    def undo(self,fake=False,checkKilled = False):
         
         """ For undoing moves """
         
@@ -376,14 +381,32 @@ class move:
                 for i in range(1,len(self.others)):
                     other = self.others[-i-1]
                     if len(other) > 1:
-                        p.undoMove(other[0],other[1],fake)
-                p.undoMove(self.dest_X,self.dest_Y,fake) 
+                        p.undoMove(other[0],other[1],fake,checkKilled)
+                p.undoMove(self.dest_X,self.dest_Y,fake,checkKilled) 
         else:
             p = getPiece(self.dest_X,self.dest_Y)
         
         
-        p.undoMove(self.source_X, self.source_Y,fake)
-   
+        p.undoMove(self.source_X, self.source_Y,fake,checkKilled)
+
+class recording:
+    def __init__(self):
+        self.moveList = []
+    def add (self,move):
+        self.moveList.append(move)
+    def deleteLast (self):
+        if len(self.moveList) > 0:
+            return self.moveList.pop()
+        print "idiot, no moves"
+    def save (self):
+        with open("/recordings/record.txt",'w') as f:
+            pickle.dump(self.moveList,f)
+    def load (self):
+        with open("/recordings/record.txt",'r') as f:
+            self.moveList = pickle.load(f)
+
+record = recording()
+
 def miniMax(p,depth):
     
     """ 
@@ -546,13 +569,13 @@ def resetGame():
     resetBoard()
     resetPieces()      
           
-def getPiece(x, y, checkfake = False , forceColor = None):
+def getPiece(x, y, checkfake = False , checkKilled = False, forceColor = None):
     
     """ Determines which pieces are on the board and where they are """
     
     for p in pieces:
         if p.x == x and p.y == y:      
-            if not p.killed and (not p.notReallyDead or checkfake):  
+            if p.killed == checkKilled and (not p.notReallyDead or checkfake):  
                 if forceColor == None or forceColor == p.color:  
                     return p
     return None
@@ -587,12 +610,7 @@ def undobutton():
     
     """ Undoes moves from both sides using undoMove """
     
-    global moveList
-    if len(moveList) <= 0:
-        print "idiot"
-        return
-    lastmove = moveList.pop()
-    lastmove.undo()
+    record.deleteLast().undo(checkKilled=True)
 
 class button:
     
@@ -649,17 +667,18 @@ def processClick(pos):
                     selectedPiece = realPiece # The selected piece is now equal to realPiece 
             canmove = selectedPiece.canMove((gridx) - (selectedPiece.x), (gridy) - (selectedPiece.y))
             if canmove[0]:
-                cx = canmove[1]
-                cy = canmove[2]
-                selectedPiece.doMove(cx,cy)
+                move = canmove[1]
+                move.do()
+                #cy = canmove[2]
+                #selectedPiece.doMove(cx,cy)
                 
-                if canmove[3]: # Checks to see if it can jump again - four directions to check.
+                if canmove[2]: # Checks to see if it can jump again - four directions to check.
                     for checkx in [2, -2]:
                         for checky in [2, -2]:
-                            if cx + checkx > realBoard_X or cx + checkx < 1 or cy + checky > realBoard_Y or cy + checky < 1:
+                            if gridx + checkx > realBoard_X or gridx + checkx < 1 or gridy + checky > realBoard_Y or gridy + checky < 1:
                                 continue
                             canmove = selectedPiece.canMove(checkx, checky)
-                            if canmove[0] and canmove[3]:
+                            if canmove[0] and canmove[2]:
                                 return
                 selectedPiece = None
                 checkPieces()
