@@ -10,7 +10,8 @@
 ## -> Version 2: Pictures + Menu: 11-7-11                           ##
 ## -> Version 3: MiniMax added and refined 12-19-11 --> 12-23-11    ## 
 ## -> Version 4: Added comments, refined code for readability       ##
-##    12-24-11                                                      ##
+##    12-24-11                                                      ## 
+## -> Version 5: Added recording and play back  --> 12-26-11        ##
 ## ==========================TODO=================================  ##
 ## -> Need to write NegaScout, and Alpha-Beta Algorithms.           ##
 ## -> Create a better GUI for the menu and in game playing          ##
@@ -104,6 +105,9 @@ computerState = 0       # Used to see what the computer is doing - if it equals 
 computerMove = None     # Assigns the best move to the computer that the computer will then do
 computerTimer = 0       # Timer for the AI - used so that the computer is not super fast - makes it more playable 
 moveList = []           # Stores lists of moves that the AI uses
+playingRecord = False
+playState = 0
+playIndex = 0
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -406,10 +410,10 @@ class recording:
             return self.moveList.pop()
         print "idiot, no moves"
     def save (self):
-        with open("/recordings/record.txt",'w') as f:
+        with open("record.txt",'w') as f:
             pickle.dump(self.moveList,f)
     def load (self):
-        with open("/recordings/record.txt",'r') as f:
+        with open("record.txt",'r') as f:
             self.moveList = pickle.load(f)
 
 record = recording()
@@ -618,6 +622,15 @@ def undoButton():
     
     record.deleteLast().undo(checkKilled=True)
 
+def playRecordButton():
+    global playingRecord,playState,playIndex,gameStarted
+    record.load()
+    gameStarted = True
+    playingRecord = True
+    playState = 1
+    playIndex = 0
+    resetGame()
+    
 class button:
     
     """ Used for the menu """
@@ -638,7 +651,7 @@ class button:
             return True
         return False
     
-buttonlist = [button(286,355,173,103,startsolo),button(527,353,171,105,startmulti),button(405,695,181,82,exitbutton)]
+buttonlist = [button(286,355,173,103,startsolo),button(527,353,171,105,startmulti),button(405,695,181,82,exitbutton),button(286,695,173,103,playRecordButton)]
 undoButton = button(0,0,boardOffSet_X,board_YRES,undoButton)
    
 def processClick(pos):
@@ -691,11 +704,12 @@ def processClick(pos):
                             if canMove[0] and canMove[2]:
                                 return
                 selectedPiece = None
-                checkPieces()
+                
                 if computerPlayer:
                     doComputer()
                     return
-                redTurn = not redTurn                         
+                redTurn = not redTurn 
+                checkPieces()                        
             return
     if realPiece != None:
         if redTurn == realPiece.red:
@@ -812,6 +826,9 @@ def checkPieces(color=None):
             elif color == PIECE_BLACK and playerWon == "Black":
                 currentPlayerWon = True
         return winnerFound, currentPlayerWon
+    print gameOver,redCanMove,blackCanMove
+    if gameOver:
+        record.save()  # saves game into a file
             
                         
 def drawtext():
@@ -863,6 +880,25 @@ def updateComp():
                 redTurn = False
                 checkPieces()         
 
+def updateRecord():
+    global selectedPiece, playState,playIndex,playingRecord,computerTimer
+    if playState > 0 and not gameOver:
+        computerTimer += mainClock.get_time()
+        if playState == 1:
+            selectedPiece = getPiece(record.moveList[playIndex].source_X,record.moveList[playIndex].source_Y)
+            playState = 2   
+        if playState == 2:
+            if computerTimer >= 1000:
+                record.moveList[playIndex].do()
+                playState = 3
+                computerTimer = 0
+                playIndex += 1
+        if playState == 3:
+            if computerTimer >= 500:
+                selectedPiece = None
+                computerTimer = 0
+                playState = 1
+                checkPieces()       
 def updateGame():
     
     """ 
@@ -872,6 +908,8 @@ def updateGame():
         
     """
     mainClock.tick()
+    if playingRecord:
+        updateRecord()
     if gameStarted:
         updateComp()
         drawBoard()
