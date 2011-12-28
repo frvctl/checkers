@@ -81,33 +81,34 @@ PIECE_VOID = 9      # No piece drawn -- Border of BitMap
 ## and the top of the board with black pieces being up.                                         ##
 ## ============================================================================================ ##
 ## (2, 2) = Jump up right;         (2, -2) = Jump down left;                                    ##
-## (-2, -2) = Jump up left;     (-2, 2) = Jump up right;                                        ##
-## (1, 1) = Down right;              (1, -1) = Down left;                                       ##
-## (-1, -1) = Up left;          (-1, 1) = Up right;                                             ##
+## (-2, -2) = Jump up left;        (-2, 2) = Jump up right;                                     ##
+## (1, 1) = Down right;            (1, -1) = Down left;                                         ##
+## (-1, -1) = Up left;             (-1, 1) = Up right;                                          ##
 ## ============================================================================================ ##
 ## The numbers represent the difference of the pieces initial coordinates on the BitMap         ##
 ## - as in a set of numbers such as 7, 4; 7 being the X coordinate and 3 being the Y coordinate ##
 ## - and the pieces new coordinates. Thus if the piece moves from 7, 4 to 6, 5                  ##
-## - a perfectly legal move - it would return (-1, 1) which indicates Forward right.             ##
+## - a perfectly legal move - it would return (-1, 1) which indicates Forward right.            ##
 ## ============================================================================================ ##
 possibleMoves = [(2,2),(2,-2),(-2,-2),(-2,2),(1,1),(1,-1),(-1,1),(-1,-1)] # All possible moves
 movesWithoutJumps = [(1,1),(1,-1),(-1,-1),(-1,1)]                         # Moves without jumps
 ## ============================================================================================ ##
 
 ## ===================================================== State Variables =============================================================== ##
-gameOver = False        # Determines if game is over
-gameStarted = False     # Determines if game is started
-playerWon = "Winner"    # Keeps track of the winner
-redTurn = False         # Turn feature
-selectedPiece = None    # Shows if there is a piece selected
-computerPlayer = False  # Makes the computer play
-computerState = 0       # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
-computerMove = None     # Assigns the best move to the computer that the computer will then do
-computerTimer = 0       # Timer for the AI - used so that the computer is not super fast - makes it more playable 
-moveList = []           # Stores lists of moves that the AI uses
-playingRecord = False
-playState = 0
-playIndex = 0
+gameOver = False            # Determines if game is over
+gameStarted = False         # Determines if game is started
+playerWon = "Winner"        # Keeps track of the winner
+redTurn = False             # Turn feature
+selectedPiece = None        # Shows if there is a piece selected
+computerPlayer = False      # Makes the computer play
+computerState = 0           # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
+computerMove = None         # Assigns the best move to the computer that the computer will then do
+computerTimer = 0           # Timer for the AI - used so that the computer is not super fast - makes it more playable 
+moveList = []               # Stores lists of moves that the AI uses
+playingRecord = False       # Determines if the recording is being played
+playState = 0               # Used for going through the recorded game
+playIndex = 0               # Same as above
+awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -189,10 +190,10 @@ class piece:
             unit_Y = diff_Y / abs(diff_Y)
             if abs(diff_X) > 1:
                 if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, move(self.x,self.y,temp_X,temp_Y) , True                             # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                    return True, move(self.x,self.y,temp_X,temp_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
                 else:                                                             # Else the above falls through - returns False (it cannot move) 
                     return False,                                                 # returns False (it cannot move)  
-            return True, move(self.x,self.y,temp_X,temp_Y) , False                                    # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (it is not a jump)
+            return True, move(self.x,self.y,temp_X,temp_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
         return False,                                                             # Assuming none of the above apply returns False (it cannot move) 
     
     def doMove(self, x, y, notReallyDead=False):
@@ -418,7 +419,7 @@ class recording:
 
 record = recording()
 
-def miniMax(p,depth):
+def miniMax(p, depth):
     
     """ 
         
@@ -528,8 +529,9 @@ def depthMiniMax(depth):
             realBestMove = value[1]
     return realBestMove  #return best move back to doComputer()
            
-            
 
+def alpha():   
+    pass
         
 
 def resetBoard():
@@ -579,7 +581,7 @@ def resetGame():
     resetBoard()
     resetPieces()      
           
-def getPiece(x, y, checkfake = False , checkKilled = False, forceColor = None):
+def getPiece(x, y, checkfake=False , checkKilled=False, forceColor=None):
     
     """ Determines which pieces are on the board and where they are """
     
@@ -635,15 +637,25 @@ class button:
     
     """ Used for the menu """
     
-    def __init__(self,x,y,w,h,f):
+    def __init__(self,x,y,w,h,text,f):
         
         """ Constructor for button class """
         
-        self.x = x  # X-coord for the button's box
-        self.y = y  # Y=coord for the button's box
-        self.w = w  # Width of the button's box
-        self.h = h  # Height of the button's box
-        self.f = f  # Name on the button
+        self.x = x       # X-coord for the button's box
+        self.y = y       # Y=coord for the button's box
+        self.w = w       # Width of the button's box
+        self.h = h       # Height of the button's box
+        self.text = text # The name of the button - text displayed on it
+        self.f = f       # The function called
+        
+    def draw(self):
+        pygame.draw.rect(windowSurface, BLACK, (self.x , self.y , self.w, self.h))
+        text = font2.render(self.text, True, WHITE)
+        textRect = text.get_rect()
+        textRect.centerx = self.x + (self.w/2)
+        textRect.centery = self.y + (self.h/2)
+        windowSurface.blit(text, textRect)
+         
         
     def inside(self,x,y):
         """    """
@@ -651,8 +663,10 @@ class button:
             return True
         return False
     
-buttonlist = [button(286,355,173,103,startsolo),button(527,353,171,105,startmulti),button(405,695,181,82,exitbutton),button(286,695,173,103,playRecordButton)]
-undoButton = button(0,0,boardOffSet_X,board_YRES,undoButton)
+buttonlist = [button(286,355,173,103, "Solo", startsolo),button(527,353,171,105,"Multi",startmulti),button(405,695,181,82,"Exit",exitbutton),button(286,500,173,103,"Play",playRecordButton)]
+undoButton = button(0,0,boardOffSet_X,board_YRES,"Undo",undoButton)
+
+
    
 def processClick(pos):
     
@@ -662,7 +676,7 @@ def processClick(pos):
         Utilizes getPiece and canMove functions 
         
     """
-    global selectedPiece, redTurn, moveList
+    global selectedPiece, redTurn, moveList, awaitingSecondJump
     x, y = pos
     if not gameStarted:
         for button in buttonlist:
@@ -684,8 +698,10 @@ def processClick(pos):
     if selectedPiece != None:
             if selectedPiece.x == grid_X and selectedPiece.y == grid_Y:
                 selectedPiece = None
+                if awaitingSecondJump:
+                    endPlayerTurn()
                 return
-            elif realPiece != None:
+            elif realPiece != None and not awaitingSecondJump:
                 if redTurn == realPiece.red:
                     selectedPiece = realPiece # The selected piece is now equal to realPiece 
             canMove = selectedPiece.canMove(grid_X - selectedPiece.x, grid_Y - selectedPiece.y)
@@ -702,18 +718,23 @@ def processClick(pos):
                                 continue
                             canMove = selectedPiece.canMove(check_X, check_Y)
                             if canMove[0] and canMove[2]:
+                                awaitingSecondJump = True
                                 return
-                selectedPiece = None
-                
-                if computerPlayer:
-                    doComputer()
-                    return
-                redTurn = not redTurn 
-                checkPieces()                        
+                endPlayerTurn()        
             return
     if realPiece != None:
         if redTurn == realPiece.red:
             selectedPiece = realPiece
+            
+def endPlayerTurn():
+    global selectedPiece,redTurn,awaitingSecondJump
+    selectedPiece = None
+    awaitingSecondJump = False
+    if computerPlayer:
+        doComputer()
+        return
+    redTurn = not redTurn 
+    checkPieces() 
        
 def doComputer():
     
@@ -760,6 +781,8 @@ def drawMenu():
     """ Draw's a menu picture """
     
     windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSet_X, board_YRES))
+    for button in buttonlist:
+        button.draw()
     
 def eventCheck(event):
     
@@ -881,6 +904,9 @@ def updateComp():
                 checkPieces()         
 
 def updateRecord():
+    
+    """ Is responsible for playing back the recorded list """
+    
     global selectedPiece, playState,playIndex,playingRecord,computerTimer
     if playState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
@@ -898,7 +924,8 @@ def updateRecord():
                 selectedPiece = None
                 computerTimer = 0
                 playState = 1
-                checkPieces()       
+                checkPieces()   
+                    
 def updateGame():
     
     """ 
