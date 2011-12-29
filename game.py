@@ -46,13 +46,13 @@ mainClock = pygame.time.Clock() # Game clock: used for slowing down the AI oppon
 INFINITY = 99999999 # Constant used for the AI algorithms
 
 ## ======================================= Size of the window ====================================== ##
-boardOffSet_X = 400  # The extra space on the left - used for displaying information to the user
+boardOffSetLeft_X = 300  # The extra space on the left - used for displaying information to the user
 board_XRES = 1000    # Length of the board   
 board_YRES = 1000    # Width of the board
 ## ================================================================================================= ##
 
 ## ================================== Window Surface ==================================== ##
-windowSurface = pygame.display.set_mode((board_XRES + boardOffSet_X, board_YRES), 0, 32)
+windowSurface = pygame.display.set_mode((board_XRES + boardOffSetLeft_X, board_YRES), 0, 32)
 pygame.display.set_caption('Checkers!')
 ## ====================================================================================== ##
 
@@ -121,6 +121,11 @@ playingRecord = False       # Determines if the recording is being played
 playState = 0               # Used for going through the recorded game
 playIndex = 0               # Same as above
 awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
+fast = False
+faster = False
+slow = False
+slower = False
+playBack = False
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -634,14 +639,56 @@ def undoButton():
     
     record.deleteLast().undo(checkKilled=True)
 
+def mainMenuButton():
+    
+    global gameStarted
+    gameStarted = False
+    
+def resetGameButton():
+    
+    resetGame()
+
 def playRecordButton():
-    global playingRecord,playState,playIndex,gameStarted
+    global playingRecord,playState,playIndex,gameStarted, playBack
     record.load()
+    playBack = True
     gameStarted = True
     playingRecord = True
     playState = 1
     playIndex = 0
     resetGame()
+    
+def fastButton():
+    
+    global fast, faster, slow, slower
+    fast = True
+    faster = False
+    slow = False
+    slower = False
+    
+def fasterButton():
+    
+    global faster, fast, slow, slower
+    fast = False
+    faster = True 
+    slow = False
+    slower = False 
+      
+def slowButton():
+    
+    global fast, faster, slow, slower
+    fast = False
+    faster = False
+    slow = True
+    slower = False
+    
+def slowerButton():
+    
+    global faster, fast, slow, slower
+    fast = False
+    faster = False 
+    slower = True
+    slow = False
     
 class button:
     
@@ -659,22 +706,38 @@ class button:
         self.f = f       # The function called
         
     def draw(self):
-        pygame.draw.rect(windowSurface, BLACK, (self.x , self.y , self.w, self.h))
-        text = font2.render(self.text, True, WHITE)
+        pygame.draw.rect(windowSurface, WHITE, (self.x , self.y , self.w, self.h))
+        text = font2.render(self.text, True, RED)
         textRect = text.get_rect()
         textRect.centerx = self.x + (self.w/2)
         textRect.centery = self.y + (self.h/2)
         windowSurface.blit(text, textRect)
-         
-        
+    
     def inside(self,x,y):
         """    """
         if x >= self.x and x < self.x+self.w and y >= self.y and y < self.y+self.h:
             return True
         return False
     
-buttonlist = [button(286,355,173,103, "Solo", startsolo),button(527,353,171,105,"Multi",startmulti),button(405,695,181,82,"Exit",exitbutton),button(286,500,173,103,"Play",playRecordButton)]
-undoButton = button(0,0,boardOffSet_X,board_YRES,"Undo",undoButton)
+buttonlist = [
+              button(286,355,173,103, "Solo", startsolo),
+              button(527,353,171,105,"Multi-Player",startmulti),
+              button(527,500,171,105,"Exit",exitbutton),
+              button(286,500,173,103,"Play",playRecordButton)
+              ]
+
+inGameButtons = [
+                 button(25, 550, 150,100,"Undo",undoButton),
+                 button(25, 700, 150,100, "Main Menu", mainMenuButton),
+                 button(25, 850, 150,100, "Reset Game", resetGameButton),
+                 ]
+
+playBackButtons = [
+                   button(25, 300, 100, 100, "Fast", fastButton),
+                   button(25, 100, 100,100, 'Faster', fasterButton),
+                   button(150, 300, 100, 100, "Slow", slowButton),
+                   button(150, 100, 100,100, 'Slower', slowerButton)
+                   ]
 
 
    
@@ -693,11 +756,15 @@ def processClick(pos):
             if button.inside(x,y):
                 button.f()
         return
-    if undoButton.inside(x,y):
-        undoButton.f()
+    for blah in inGameButtons:
+        if blah.inside(x,y):
+            blah.f()
+    for derp in playBackButtons:
+        if derp.inside(x,y):
+            derp.f()
     if gameOver:
         return
-    grid_X = ((x-boardOffSet_X) / CELL_X) + 1
+    grid_X = ((x-boardOffSetLeft_X) / CELL_X) + 1
     grid_Y = (y / CELL_Y) + 1
     realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
     if selectedPiece != None:
@@ -765,7 +832,7 @@ def drawBoard():
                 color = BLACK
                 if selectedPiece != None and selectedPiece.x - 1 == x and selectedPiece.y - 1 == y:
                     color = ORANGE
-            pygame.draw.rect(windowSurface, color, ((x * CELL_X)+boardOffSet_X, y * CELL_Y, x + CELL_X, y + CELL_Y)) 
+            pygame.draw.rect(windowSurface, color, ((x * CELL_X)+boardOffSetLeft_X, y * CELL_Y, x + CELL_X, y + CELL_Y)) 
        
 def drawPieces():
     
@@ -774,7 +841,7 @@ def drawPieces():
     for p in pieces:
         if p.killed:
             continue
-        screen_X = ((p.x - 1) * CELL_X) + boardOffSet_X
+        screen_X = ((p.x - 1) * CELL_X) + boardOffSetLeft_X
         screen_Y = (p.y - 1) * CELL_Y
         windowSurface.blit(p.getPiecePic(), (screen_X, screen_Y, screen_X + CELL_X, screen_Y + CELL_Y))
         
@@ -782,28 +849,28 @@ def drawMenu():
     
     """ Draw's a menu picture """
     
-    windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSet_X, board_YRES))
+    windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSetLeft_X, board_YRES))
     for button in buttonlist:
+        button.draw()
+        
+def drawInGameButtons():
+    
+    for button in inGameButtons:
+        button.draw()
+    
+def drawPlayBackButtons():
+    
+    for button in playBackButtons:
         button.draw()
     
 def eventCheck(event):
     
-    """ 
-        Checks for input from user.
-        ==> If mousebutton is clicked utilizes processClick function
-        ==> If r is pressed resets the game
-        ==> If escape is pressed exits the game and returns user to menu
-         
-    """
+    """ Checks for input from user. If mouse button is clicked utilizes processClick function. """
         
     global gameOver,gameStarted
     if event.type == MOUSEBUTTONDOWN:
         processClick(event.pos)
-    if event.type == KEYDOWN:
-        if event.key == 114:
-            resetGame()
-        if event.key == 27:
-            gameStarted = False
+    
 
 def checkPieces(color=None):
     
@@ -867,7 +934,7 @@ def drawtext():
         windowSurface.blit(text, textRect)
         return
     player = "Red"
-    text_X = boardOffSet_X/2
+    text_X = boardOffSetLeft_X/2
     text_Y = board_YRES - 40
     if not redTurn:
         player = "Black"
@@ -879,7 +946,7 @@ def drawtext():
     windowSurface.blit(text, textRect)
     text = font2.render("FPS: " + repr(int(mainClock.get_fps())), True, WHITE)
     textRect = text.get_rect()
-    textRect.centerx = boardOffSet_X/2
+    textRect.centerx = boardOffSetLeft_X/2
     textRect.centery = board_YRES/2
     windowSurface.blit(text, textRect)
 
@@ -902,24 +969,86 @@ def updateComp():
                 computerMove = None
                 computerState = 0
                 redTurn = False
-                checkPieces()         
+                checkPieces() 
+                
+def regularSpeed():
+    
+    global playState, computerTimer, playIndex
+    
+    if playState == 2:
+        if computerTimer >= 1000:
+            record.moveList[playIndex].do()
+            playState = 3
+            computerTimer = 0
+            playIndex += 1
+
+def goFast():
+    
+    global playState, computerTimer, playIndex, fast
+    
+    if playState == 2:
+        if computerTimer >= 500:
+            record.moveList[playIndex].do()
+            playState = 3
+            computerTimer = 0
+            playIndex += 1
+        
+def goFaster():
+    
+    global playState, computerTimer, playIndex, faster
+
+    if playState == 2:
+        if computerTimer >= 250:
+            record.moveList[playIndex].do()
+            playState = 3
+            computerTimer = 0
+            playIndex += 1
+    
+def goSlow():
+    
+    global playState, computerTimer, playIndex, faster
+
+    if playState == 2:
+        if computerTimer >= 1500:
+            record.moveList[playIndex].do()
+            playState = 3
+            computerTimer = 0
+            playIndex += 1
+    
+def goReallySlow():
+    
+    global playState, computerTimer, playIndex, faster
+
+    if playState == 2:
+        if computerTimer >= 2500:
+            record.moveList[playIndex].do()
+            playState = 3
+            computerTimer = 0
+            playIndex += 1
+    
+            
 
 def updateRecord():
     
     """ Is responsible for playing back the recorded list """
     
-    global selectedPiece, playState,playIndex,playingRecord,computerTimer
+    global selectedPiece, playState,playIndex,playingRecord,computerTimer, fast
+    
     if playState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
         if playState == 1:
             selectedPiece = getPiece(record.moveList[playIndex].source_X,record.moveList[playIndex].source_Y)
             playState = 2   
-        if playState == 2:
-            if computerTimer >= 1000:
-                record.moveList[playIndex].do()
-                playState = 3
-                computerTimer = 0
-                playIndex += 1
+        if playState == 2 and not fast and not faster and not slow and not slower:
+            regularSpeed()
+        if fast:
+            goFast()
+        if faster:
+            goFaster()
+        if slow:
+            goSlow()
+        if slower:
+            goReallySlow()
         if playState == 3:
             if computerTimer >= 500:
                 selectedPiece = None
@@ -938,13 +1067,20 @@ def updateGame():
     mainClock.tick()
     if playingRecord:
         updateRecord()
-    if gameStarted:
+    if gameStarted and not playBack:
         updateComp()
+        drawInGameButtons()
+        drawBoard()
+        drawPieces()
+        drawtext()
+    elif playBack:
+        drawPlayBackButtons()
         drawBoard()
         drawPieces()
         drawtext()
     else:
         drawMenu()
+        
 
 ## ============ Main Game Loop ============= ##
 while True:
