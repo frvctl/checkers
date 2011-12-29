@@ -1,9 +1,9 @@
-## Written by: Ben Vest and Philip Briley                           ##
+## Authors: morghra94 and cracker64                                 ##
 ## ==========================SUMARY===============================  ##
 ## -> Checker's Game with an AI opponent                            ##
 ## -> Still very much in production                                 ##
-## -> Compare the effectivness of three heuristic search algorithms ##
-## namely the Minimax, NegaScout, and Alpha-Beta                    ##
+## -> Compare the effectiveness of three heuristic search algorithms##
+## namely the MiniMax, NegaScout, and Alpha-Beta                    ##
 ## ==========================DATES================================  ##
 ## -> Start: 11-5-11                                                ##
 ## -> Version 1: 11-6-11                                            ##
@@ -13,11 +13,23 @@
 ##    12-24-11                                                      ## 
 ## -> Version 5: Added recording and play back  --> 12-26-11        ##
 ## ==========================TODO=================================  ##
-## -> Need to write NegaScout, and Alpha-Beta Algorithms.           ##
-## -> Create a better GUI for the menu and in game playing          ##
-## -> Make it play against itself                                   ##
-## -> Have a way to record statistics from the game                 ##
-## -> Compartmentalize the code into different files                ##
+## Aesthetics:                                                      ##
+##            => New Edge design for in game board                  ##
+##            => Different colors and possibly graphics             ##
+##            => New menu                                           ##
+##            => In game buttons                                    ##
+##            => More in game user feedback                         ##
+##            => Standardized scoring/move piece notation           ##
+## Recording:                                                       ##
+##            => Add fast forward, rewind, and pause buttons        ##
+##            => Ability to store multiple files then select which  ##
+##               one to play                                        ##
+## Artificial Intelligence:                                         ##
+##            => Make MiniMax one function                          ##
+##            => Add AlphaBeta and NegaScout                        ##
+##            => Ability for the AI to play against them self       ##
+## General:                                                         ##
+##            => Compartmentalize the code completely               ##
 ## ================================================================ ##
 
 ## ======== Imports ========= ##
@@ -344,8 +356,6 @@ class piece:
             numberValue = -numberValue
         return numberValue
 
-        # Add more proximity checks, like one to see if moving a piece will result in the other side getting a king
-        
 class move:
     
     """ 
@@ -527,7 +537,7 @@ def depthMiniMax(depth):
         if value[0] > realBestValue:
             realBestValue = value[0]
             realBestMove = value[1]
-    return realBestMove  #return best move back to doComputer()
+    return realBestMove  # Return best move back to doComputer()
            
 
 def alpha():   
@@ -687,14 +697,9 @@ def processClick(pos):
         undoButton.f()
     if gameOver:
         return
-
     grid_X = ((x-boardOffSet_X) / CELL_X) + 1
     grid_Y = (y / CELL_Y) + 1
     realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
-    #print board[gridy][gridx]
-    #for p in pieces:
-        #if p.x == grid_X and p.y == grid_Y:
-            #print p.color,"killed:",p.killed,"fakedead:",p.notReallyDead
     if selectedPiece != None:
             if selectedPiece.x == grid_X and selectedPiece.y == grid_Y:
                 selectedPiece = None
@@ -702,15 +707,12 @@ def processClick(pos):
                     endPlayerTurn()
                 return
             elif realPiece != None and not awaitingSecondJump:
-                if redTurn == realPiece.red:
+                if redTurn == realPiece.red and realPiece.canMoveAnywhere():
                     selectedPiece = realPiece # The selected piece is now equal to realPiece 
             canMove = selectedPiece.canMove(grid_X - selectedPiece.x, grid_Y - selectedPiece.y)
             if canMove[0]:
                 move = canMove[1]
                 move.do()
-                #cy = canmove[2]
-                #selectedPiece.doMove(cx,cy)
-                
                 if canMove[2]: # Checks to see if it can jump again - four directions to check.
                     for check_X in [2, -2]:
                         for check_Y in [2, -2]:
@@ -723,7 +725,7 @@ def processClick(pos):
                 endPlayerTurn()        
             return
     if realPiece != None:
-        if redTurn == realPiece.red:
+        if redTurn == realPiece.red and realPiece.canMoveAnywhere():
             selectedPiece = realPiece
             
 def endPlayerTurn():
@@ -741,7 +743,7 @@ def doComputer():
     """ Activates the computer Player """
     
     global selectedPiece, computerState,computerMove, redTurn
-    bestMove = depthMiniMax(7)  # The depth which the miniMax function will search to - must be an odd number
+    bestMove = depthMiniMax(7)  # The depth which the miniMax function will search to - *must be an odd number*
     if bestMove != None:
         bestPiece = getPiece(bestMove.source_X,bestMove.source_Y)
         computerMove = bestMove
@@ -812,7 +814,7 @@ def checkPieces(color=None):
         
     """
     
-    global pieces, gameOver, playerWon
+    global pieces, gameOver, playerWon, selectedPiece
     redCanMove = False
     blackCanMove = False
     for p in pieces:
@@ -849,9 +851,8 @@ def checkPieces(color=None):
             elif color == PIECE_BLACK and playerWon == "Black":
                 currentPlayerWon = True
         return winnerFound, currentPlayerWon
-    #print gameOver,redCanMove,blackCanMove
     if gameOver:
-        record.save()  # saves game into a file
+        record.save()  # Saves game into a file
             
                         
 def drawtext():
