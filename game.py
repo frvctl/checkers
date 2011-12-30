@@ -17,25 +17,22 @@
 ##            => New Edge design for in game board                  ##
 ##            => Different colors and possibly graphics             ##
 ##            => New menu                                           ##
-##            => In game buttons                                    ##
 ##            => More in game user feedback                         ##
 ##            => Standardized scoring/move piece notation           ##
-## Recording:                                                       ##
-##            => Add fast forward, rewind, and pause buttons        ##
-##            => Ability to store multiple files then select which  ##
-##               one to play                                        ##
 ## Artificial Intelligence:                                         ##
-##            => Make MiniMax one function                          ##
-##            => Add AlphaBeta and NegaScout                        ##
-##            => Ability for the AI to play against them self       ##
+##            => Refine AlphaBeta and add NegaScout                 ##
+##                 => Perfect*** move sorting                       ##
+##            => Ability for the AI to play against itself          ##
 ## General:                                                         ##
 ##            => Compartmentalize the code completely               ##
+##            => Add mandatory jump ** High priority **             ##
 ## ================================================================ ##
 
 ## ======== Imports ========= ##
 import pygame
 import sys
 import pickle
+import datetime
 from pygame.locals import *
 ## ========================== ##
 
@@ -121,11 +118,8 @@ playingRecord = False       # Determines if the recording is being played
 playState = 0               # Used for going through the recorded game
 playIndex = 0               # Same as above
 awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
-fast = False
-faster = False
-slow = False
-slower = False
-playBack = False
+playSpeed = 1000
+ALPHABETA = True
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -426,13 +420,41 @@ class recording:
             return self.moveList.pop()
         print "idiot, no moves"
     def save (self):
-        with open("record.txt",'w') as f:
+        with  open(str(datetime.datetime.now()),'w') as f:
             pickle.dump(self.moveList,f)
     def load (self):
-        with open("record.txt",'r') as f:
+        with open("record.txt", 'r') as f:
             self.moveList = pickle.load(f)
 
 record = recording()
+
+def handleWin(p,redWon):
+    if redWon:
+        if p.red:
+            return INFINITY/2,
+        else:
+            return -INFINITY/2,
+    else:
+        if p.red:
+            return -INFINITY/2,
+        else:
+            return INFINITY/2,
+
+def miniMaxInit(depth):
+    bestValue = -INFINITY
+    bestMove = None
+    mainClock.tick()
+    for p in pieces:
+        if not p.killed and p.red:
+            if ALPHABETA:
+                value = alphaBeta(p,depth,-INFINITY,INFINITY)
+            else:
+                value = miniMax(p,depth)
+            if value[0] > bestValue:
+                bestValue = value[0]
+                bestMove = value[1]
+    print mainClock.tick()
+    return bestMove
 
 def miniMax(p, depth):
     
@@ -443,21 +465,12 @@ def miniMax(p, depth):
         must be an odd number. 
         
     """
-    
+    winCheck = checkPieces(p.color)
+    if winCheck[0]:
+        return handleWin(p,winCheck[1])
     if depth == 0:
-        winCheck = checkPieces(p.color)
-        if winCheck[0]:
-            if winCheck[1]:
-                if p.red:
-                    return INFINITY/2,
-                else:
-                    return -INFINITY/2,
-            else:
-                if p.red:
-                    return -INFINITY/2,
-                else:
-                    return INFINITY/2,
         return p.evaluate(),
+    
     bestValue = INFINITY
     bestMove = None
     if p.red:
@@ -470,7 +483,12 @@ def miniMax(p, depth):
     
     for move in moves:
         move.do(True)
-        value = miniMax(p,depth-1)[0]
+        if depth > 1:
+            for p2 in pieces:
+                if not p2.killed and not p2.notReallyDead and p2.red == (depth%2==0): # Starts with black
+                    value = miniMax(p2,depth-1)[0]
+        else:
+            value = miniMax(p,depth-1)[0]
         move.undo(True)
         if p.red:
             if value > bestValue:
@@ -480,8 +498,71 @@ def miniMax(p, depth):
             if value < bestValue:
                 bestValue = value
                 bestMove = move
-    return bestValue, bestMove  
+    return bestValue, bestMove
 
+def alphaBeta(p, depth, alpha, beta):
+    
+    """ 
+        
+        The main miniMax algorithm, must enter the depth that you want 
+        it to go to in the doComputer function, the depth entered 
+        must be an odd number. 
+        
+    """
+    winCheck = checkPieces(p.color)
+    if winCheck[0]:
+        return handleWin(p,winCheck[1])
+    if depth == 0:
+        return p.evaluate(),
+    
+    localalpha = alpha
+    bestValue = INFINITY
+    bestMove = None
+    if p.red:
+        bestValue = -INFINITY
+    moves = sort(p.makeMoveList())
+    if len(moves)==0:   # No moves in the list
+        if p.red:
+            return -INFINITY,
+        return INFINITY,
+    
+    for move in moves:
+        move.do(True)
+        if depth > 1:
+            for p2 in pieces:
+                if not p2.killed and not p2.notReallyDead and p2.red == (depth%2==0): # Starts with black
+                    value = alphaBeta(p2,depth-1,-beta,-localalpha)[0]
+        else:
+            value = alphaBeta(p,depth-1,-beta,-localalpha)[0]
+        move.undo(True)
+        if p.red:
+            if value > bestValue:
+                bestValue = value
+                bestMove = move
+        else:
+            if value < bestValue:
+                bestValue = value
+                bestMove = move
+        if bestValue >= beta:
+            break
+        if bestValue > localalpha:
+            localalpha = bestValue
+    return bestValue, bestMove
+
+def sort(moves):
+    listToSort = []
+    finalList = []
+    for move in moves:
+        p = getPiece(move.source_X,move.source_Y)
+        move.do(True)
+        listToSort.append((p.evaluate(),move))
+        move.undo(True)
+    newlist = sorted(listToSort,key=lambda blah:blah[0],reverse=True)
+    for keymoves in newlist:
+        finalList.append(keymoves[1])
+    return finalList
+    
+    
 def depthMiniMax(depth):
     
     """ Allows the main miniMax function to reach a depth greater than 1 """
@@ -543,10 +624,6 @@ def depthMiniMax(depth):
             realBestValue = value[0]
             realBestMove = value[1]
     return realBestMove  # Return best move back to doComputer()
-           
-
-def alpha():   
-    pass
         
 
 def resetBoard():
@@ -592,7 +669,6 @@ def resetGame():
     global gameOver,redTurn,computerPlayer
     gameOver = False
     redTurn = False
-    computerPlayer = False
     resetBoard()
     resetPieces()      
           
@@ -649,9 +725,9 @@ def resetGameButton():
     resetGame()
 
 def playRecordButton():
-    global playingRecord,playState,playIndex,gameStarted, playBack
+    
+    global playingRecord,playState,playIndex,gameStarted
     record.load()
-    playBack = True
     gameStarted = True
     playingRecord = True
     playState = 1
@@ -660,35 +736,19 @@ def playRecordButton():
     
 def fastButton():
     
-    global fast, faster, slow, slower
-    fast = True
-    faster = False
-    slow = False
-    slower = False
+    global playSpeed
     
-def fasterButton():
-    
-    global faster, fast, slow, slower
-    fast = False
-    faster = True 
-    slow = False
-    slower = False 
-      
+    playSpeed -= (playSpeed/5)
+
 def slowButton():
     
-    global fast, faster, slow, slower
-    fast = False
-    faster = False
-    slow = True
-    slower = False
-    
-def slowerButton():
-    
-    global faster, fast, slow, slower
-    fast = False
-    faster = False 
-    slower = True
-    slow = False
+    global playSpeed
+    playSpeed += (playSpeed/5) + 1
+     
+def menuInRecordingButton():
+    global playingRecord, gameStarted
+    playingRecord = False
+    gameStarted = False
     
 class button:
     
@@ -733,10 +793,9 @@ inGameButtons = [
                  ]
 
 playBackButtons = [
-                   button(25, 300, 100, 100, "Fast", fastButton),
-                   button(25, 100, 100,100, 'Faster', fasterButton),
-                   button(150, 300, 100, 100, "Slow", slowButton),
-                   button(150, 100, 100,100, 'Slower', slowerButton)
+                   button(25, 300, 30, 30, ">>", fastButton),
+                   button(150, 300, 30, 30, "<<", slowButton),
+                   button(150, 600, 100, 100, "Menu", menuInRecordingButton),
                    ]
 
 
@@ -804,13 +863,53 @@ def endPlayerTurn():
         return
     redTurn = not redTurn 
     checkPieces() 
+    
+    
+def legal_moves():
+    moves = []
+    for p in pieces:
+        if not p.killed and not p.notReallyDead:
+            piecemoves = p.makeMoveList()
+            for move in piecemoves:
+                moves.append(move)
+    return moves
+            
+    
+def perft(depth):
+    global redTurn
+    if depth == 0:
+        return 1
+
+    #state = curr_state or self.curr_state
+    nodes = 0
+    for move in legal_moves():
+        move.do(True)
+        nodes += perft(depth-1)
+        move.undo(True)
+    return nodes
+
+def perftest():
+    mainClock.tick()
+    for depth in range (1,11):
+        print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
+
+#perftest()
+    
        
 def doComputer():
     
     """ Activates the computer Player """
     
     global selectedPiece, computerState,computerMove, redTurn
-    bestMove = depthMiniMax(7)  # The depth which the miniMax function will search to - *must be an odd number*
+    #mainClock.tick()
+    
+    #for depth in range(1,11):
+        #depthMiniMax(depth)
+        #miniMaxInit(depth)
+        #print "Depth: ",depth,"Time: ",mainClock.tick()
+    #bestMove = depthMiniMax(7)  # The depth which the miniMax function will search to - *must be an odd number*
+    
+    bestMove = miniMaxInit(5)
     if bestMove != None:
         bestPiece = getPiece(bestMove.source_X,bestMove.source_Y)
         computerMove = bestMove
@@ -870,6 +969,12 @@ def eventCheck(event):
     global gameOver,gameStarted
     if event.type == MOUSEBUTTONDOWN:
         processClick(event.pos)
+    if event.type == KEYDOWN:
+        if event.key == 114:
+            resetGame()
+        if event.key == 27:
+            gameStarted = False
+        
     
 
 def checkPieces(color=None):
@@ -970,63 +1075,8 @@ def updateComp():
                 computerState = 0
                 redTurn = False
                 checkPieces() 
-                
-def regularSpeed():
-    
-    global playState, computerTimer, playIndex
-    
-    if playState == 2:
-        if computerTimer >= 1000:
-            record.moveList[playIndex].do()
-            playState = 3
-            computerTimer = 0
-            playIndex += 1
 
-def goFast():
     
-    global playState, computerTimer, playIndex, fast
-    
-    if playState == 2:
-        if computerTimer >= 500:
-            record.moveList[playIndex].do()
-            playState = 3
-            computerTimer = 0
-            playIndex += 1
-        
-def goFaster():
-    
-    global playState, computerTimer, playIndex, faster
-
-    if playState == 2:
-        if computerTimer >= 250:
-            record.moveList[playIndex].do()
-            playState = 3
-            computerTimer = 0
-            playIndex += 1
-    
-def goSlow():
-    
-    global playState, computerTimer, playIndex, faster
-
-    if playState == 2:
-        if computerTimer >= 1500:
-            record.moveList[playIndex].do()
-            playState = 3
-            computerTimer = 0
-            playIndex += 1
-    
-def goReallySlow():
-    
-    global playState, computerTimer, playIndex, faster
-
-    if playState == 2:
-        if computerTimer >= 2500:
-            record.moveList[playIndex].do()
-            playState = 3
-            computerTimer = 0
-            playIndex += 1
-    
-            
 
 def updateRecord():
     
@@ -1039,18 +1089,14 @@ def updateRecord():
         if playState == 1:
             selectedPiece = getPiece(record.moveList[playIndex].source_X,record.moveList[playIndex].source_Y)
             playState = 2   
-        if playState == 2 and not fast and not faster and not slow and not slower:
-            regularSpeed()
-        if fast:
-            goFast()
-        if faster:
-            goFaster()
-        if slow:
-            goSlow()
-        if slower:
-            goReallySlow()
+        if playState == 2:
+            if computerTimer >= playSpeed:
+                record.moveList[playIndex].do()
+                playState = 3
+                computerTimer = 0
+                playIndex += 1
         if playState == 3:
-            if computerTimer >= 500:
+            if computerTimer >= (playSpeed/2):
                 selectedPiece = None
                 computerTimer = 0
                 playState = 1
@@ -1067,13 +1113,13 @@ def updateGame():
     mainClock.tick()
     if playingRecord:
         updateRecord()
-    if gameStarted and not playBack:
+    if gameStarted and not playingRecord:
         updateComp()
         drawInGameButtons()
         drawBoard()
         drawPieces()
         drawtext()
-    elif playBack:
+    elif playingRecord:
         drawPlayBackButtons()
         drawBoard()
         drawPieces()
@@ -1094,3 +1140,6 @@ while True:
     pygame.display.update()
             
             
+            
+            
+
