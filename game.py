@@ -101,6 +101,8 @@ PIECE_VOID = 9      # No piece drawn -- Border of BitMap
 ## ============================================================================================ ##
 possibleMoves = [(2,2),(2,-2),(-2,-2),(-2,2),(1,1),(1,-1),(-1,1),(-1,-1)] # All possible moves
 movesWithoutJumps = [(1,1),(1,-1),(-1,-1),(-1,1)]                         # Moves without jumps
+redNotKing = [(2,-2),(-2,-2),(1,-1),(-1,-1)]
+blackNotKing = [(2,2),(-2,2),(1,1),(-1,1)]
 ## ============================================================================================ ##
 
 ## ===================================================== State Variables =============================================================== ##
@@ -188,29 +190,46 @@ class piece:
         
         if abs(diff_X) != abs(diff_Y) or abs(diff_X) > 2 or abs(diff_Y) > 2:    
             return False,                                                   
-        temp_X = self.x  # X Coordinate after a move
-        temp_Y = self.y  # Y Coordinate after a move
+        
         if diff_Y < 0 and not self.red and not self.king:    
             return False,
         if diff_Y > 0 and self.red and not self.king:    
             return False,
-        temp_Y += diff_Y   
-        temp_X += diff_X   
-        if board[temp_Y][temp_X] == 0:      # If true the other pieces color is red
-            unit_X = diff_X / abs(diff_X)   # Turns the X coordinate into a 1 or -1 
-            unit_Y = diff_Y / abs(diff_Y)
+        temp_X = self.x + diff_X  # X Coordinate after a move
+        temp_Y = self.y + diff_Y  # Y Coordinate after a move 
+        if board[temp_Y][temp_X] == 0:      # If true then it can move there
             if abs(diff_X) > 1:
+                unit_X = diff_X / 2#abs(diff_X)   # Turns the X coordinate into a 1 or -1 
+                unit_Y = diff_Y / 2#abs(diff_Y)
                 if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
                     return True, move(self.x,self.y,temp_X,temp_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
                 else:                                                             # Else the above falls through - returns False (it cannot move) 
                     return False,                                                 # returns False (it cannot move)  
             return True, move(self.x,self.y,temp_X,temp_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
         return False,                                                             # Assuming none of the above apply returns False (it cannot move) 
+
+    def canMove_fast(self, diff_X, diff_Y):
+        
+        """ 
+            Determines if a piece can move. skips some checks because it came from a safe place
+            
+        """
+        temp_X = self.x + diff_X  # X Coordinate after a move
+        temp_Y = self.y + diff_Y  # Y Coordinate after a move 
+        if board[temp_Y][temp_X] == 0:      # If true then it can move there
+            if abs(diff_X) > 1:
+                unit_X = diff_X / 2#abs(diff_X)   # Turns the X coordinate into a 1 or -1 
+                unit_Y = diff_Y / 2#abs(diff_Y)
+                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
+                    return True, move(self.x,self.y,temp_X,temp_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                else:                                                             # Else the above falls through - returns False (it cannot move) 
+                    return False,                                                 # returns False (it cannot move)  
+            return True, move(self.x,self.y,temp_X,temp_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
+        return False, 
     
     def doMove(self, x, y, notReallyDead=False):
         
         """ Does a move no matter what, can be temporary for computer checks """
-        
         board[self.y][self.x] = PIECE_EMPTY         # It just moved from here, so it's now empty
         diff_X = x - self.x                         # Where it is moving, for jump checking, X coordinate 
         diff_Y = y - self.y                         # Same as above, Y Coordinate
@@ -264,12 +283,19 @@ class piece:
                     killedPiece.notReallyDead = False
                 return
             killedPiece.killed = False
+
+    def possibleMoves(self):
+        if self.king:
+            return possibleMoves
+        if self.red:
+            return redNotKing
+        return blackNotKing
     
     def canMoveAnywhere(self):
         
         """ Checks all around the piece in every direction to determine if movement is possible """
         
-        for check_X,check_Y in possibleMoves:
+        for check_X,check_Y in self.possibleMoves():
             if self.x + check_X > realBoard_X or self.x + check_X < 1 or self.y + check_Y > realBoard_Y or self.y + check_Y < 1:
                 continue
             checkMove = self.canMove(check_X, check_Y)
@@ -282,14 +308,15 @@ class piece:
         """ Creates a list of moves for the AI to use (through doMove and undoMove) """
         
         list_of_moves = []
-        for check_X,check_Y in possibleMoves:
+        for check_X,check_Y in self.possibleMoves():
             if self.x + check_X > realBoard_X or self.x + check_X < 1 or self.y + check_Y > realBoard_Y or self.y + check_Y < 1:
                 continue
-            checkMove = self.canMove(check_X, check_Y)
+            checkMove = self.canMove_fast(check_X, check_Y)
             if checkMove[0]:
                 others = []
                 tempList = []
                 flag = checkMove[2]
+                wasAJump = checkMove[2]
                 last_X = check_X
                 last_Y = check_Y
                 count = 0
@@ -298,10 +325,10 @@ class piece:
                     foundJump = False
                     tempList.append([self.x,self.y])  #store pieces current position
                     self.doMove(self.x + last_X, self.y + last_Y, True)  # move it to new position
-                    for next_X,next_Y in possibleMoves:
+                    for next_X,next_Y in self.possibleMoves():
                         if self.x + next_X > realBoard_X or self.x + next_X < 1 or self.y + next_Y > realBoard_Y or self.y + next_Y < 1:
                             continue
-                        checkMove = self.canMove(next_X, next_Y)
+                        checkMove = self.canMove_fast(next_X, next_Y)
                         if checkMove[0] and checkMove[2]:
                             last_X = next_X
                             last_Y = next_Y
@@ -312,7 +339,7 @@ class piece:
                 while len(tempList)>0: # go through stored positions and undo
                     undo_X, undo_Y = tempList.pop()
                     self.undoMove(undo_X,undo_Y,True)
-                list_of_moves.append(move(self.x, self.y, self.x + check_X, self.y + check_Y, others))
+                list_of_moves.append(move(self.x, self.y, self.x + check_X, self.y + check_Y, wasAJump, others))
         return list_of_moves
     
     def evaluate(self):
@@ -364,7 +391,7 @@ class move:
         
     """
     
-    def __init__(self, source_X, source_Y, dest_X, dest_Y, *others):
+    def __init__(self, source_X, source_Y, dest_X, dest_Y, isJump=False, *others):
         
         """ Constructor for the move class""" 
         
@@ -373,6 +400,7 @@ class move:
         self.dest_X = dest_X        # The X coordinate after a move
         self.dest_Y = dest_Y        # Same as above; Y Coordinate
         self.others = others        # A list of any extra jumps
+        self.isJump = isJump
         if len(others) > 0:
             self.others = others[0]
             
@@ -866,12 +894,23 @@ def endPlayerTurn():
     
     
 def legal_moves():
+    #othertime = mainClock.tick()
     moves = []
+    wasJump = False
     for p in pieces:
-        if not p.killed and not p.notReallyDead:
+        if redTurn == p.red and not p.notReallyDead:
             piecemoves = p.makeMoveList()
             for move in piecemoves:
+                if move.isJump:
+                    wasJump = True
                 moves.append(move)
+    if wasJump:
+        jumpOnlyList = []
+        for move in moves:
+            if move.isJump:
+                jumpOnlyList.append(move)
+        moves = jumpOnlyList
+    #print "legal_moves() took:",mainClock.tick(),"places elsewhere:",othertime
     return moves
             
     
@@ -883,7 +922,8 @@ def perft(depth):
     #state = curr_state or self.curr_state
     nodes = 0
     for move in legal_moves():
-        move.do(True)
+        move.do(True) 
+        redTurn = not redTurn
         nodes += perft(depth-1)
         move.undo(True)
     return nodes
@@ -893,6 +933,7 @@ def perftest():
     for depth in range (1,11):
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
 
+#uncomment for performance test!
 #perftest()
     
        
