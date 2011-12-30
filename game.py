@@ -935,7 +935,7 @@ def perftest():
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
 
 # Uncomment for performance test!
-perftest()
+#perftest()
     
        
 def doComputer():
