@@ -925,6 +925,7 @@ def perft(depth):
         move.do(True) 
         redTurn = not redTurn
         nodes += perft(depth-1)
+        redTurn = not redTurn
         move.undo(True)
     return nodes
 
@@ -933,8 +934,8 @@ def perftest():
     for depth in range (1,11):
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
 
-#uncomment for performance test!
-#perftest()
+# Uncomment for performance test!
+perftest()
     
        
 def doComputer():
@@ -942,14 +943,7 @@ def doComputer():
     """ Activates the computer Player """
     
     global selectedPiece, computerState,computerMove, redTurn
-    #mainClock.tick()
-    
-    #for depth in range(1,11):
-        #depthMiniMax(depth)
-        #miniMaxInit(depth)
-        #print "Depth: ",depth,"Time: ",mainClock.tick()
-    #bestMove = depthMiniMax(7)  # The depth which the miniMax function will search to - *must be an odd number*
-    
+
     bestMove = miniMaxInit(5)
     if bestMove != None:
         bestPiece = getPiece(bestMove.source_X,bestMove.source_Y)
