@@ -121,7 +121,7 @@ playState = 0               # Used for going through the recorded game
 playIndex = 0               # Same as above
 awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
 playSpeed = 1000
-ALPHABETA = True
+ALPHABETA = False
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -159,7 +159,7 @@ class piece:
         self.king = king            # King pieces
         self.red = red              # Red pieces    
         self.killed = False         # If a piece is killed it means that it has been jumped over
-        self.notReallyDead = False  # If a piece is notReallyDead it is one which has been jumped by the computer but undone later in the game 
+        #self.notReallyDead = False  # If a piece is notReallyDead it is one which has been jumped by the computer but undone later in the game 
         self.justJumped = 0         # Pieces that have been jumped on the previous move
         if red:
             self.color = PIECE_RED
@@ -202,10 +202,10 @@ class piece:
                 unit_X = diff_X / 2#abs(diff_X)   # Turns the X coordinate into a 1 or -1 
                 unit_Y = diff_Y / 2#abs(diff_Y)
                 if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, move(self.x,self.y,temp_X,temp_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                    return True, move(self.x,self.y,temp_X,temp_Y,True,diff_X,diff_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
                 else:                                                             # Else the above falls through - returns False (it cannot move) 
                     return False,                                                 # returns False (it cannot move)  
-            return True, move(self.x,self.y,temp_X,temp_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
+            return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
         return False,                                                             # Assuming none of the above apply returns False (it cannot move) 
 
     def canMove_fast(self, diff_X, diff_Y):
@@ -221,46 +221,40 @@ class piece:
                 unit_X = diff_X / 2#abs(diff_X)   # Turns the X coordinate into a 1 or -1 
                 unit_Y = diff_Y / 2#abs(diff_Y)
                 if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, move(self.x,self.y,temp_X,temp_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                    return True, move(self.x,self.y,temp_X,temp_Y,True,diff_X,diff_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
                 else:                                                             # Else the above falls through - returns False (it cannot move) 
                     return False,                                                 # returns False (it cannot move)  
-            return True, move(self.x,self.y,temp_X,temp_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
+            return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
         return False, 
     
-    def doMove(self, x, y, notReallyDead=False):
+    def doMove(self, x, y, diff_X = None, diff_Y = None):
         
         """ Does a move no matter what, can be temporary for computer checks """
         board[self.y][self.x] = PIECE_EMPTY         # It just moved from here, so it's now empty
-        diff_X = x - self.x                         # Where it is moving, for jump checking, X coordinate 
-        diff_Y = y - self.y                         # Same as above, Y Coordinate
+        if diff_X == None:
+            diff_X = x - self.x                         # Where it is moving, for jump checking, X coordinate 
+            diff_Y = y - self.y                         # Same as above, Y Coordinate
         self.x = x                                  # Set the piece location to the new x, y; X coordinate
         self.y = y                                  # Same as above, Y Coordinate
         board[y][x] = self.color                    # Set the new board location
         if abs(diff_X)==2:                          # If it jumped something
-            jump_X = x - (diff_X / abs(diff_X))
-            jump_Y = y - (diff_Y / abs(diff_Y))
+            jump_X = x - (diff_X / 2)
+            jump_Y = y - (diff_Y / 2)
             board[jump_Y][jump_X] = PIECE_EMPTY
             killedPiece = getPiece(jump_X, jump_Y, forceColor=self.otherColor)
             if killedPiece == None:
                 print "WTF do",jump_X,jump_Y,self.otherColor
                 return
-            if notReallyDead:
-                if self.king:
-                    self.justJumped += 2
-                else: 
-                    self.justJumped += 1
-                killedPiece.notReallyDead = True
-                return
-            
             killedPiece.killed = True
             
-    def undoMove(self,x,y, notReallyDead = False, checkKilled = False):
+    def undoMove(self,x,y, diff_X = None, diff_Y = None):
         
         """ Same as doMove, except replaces any piece it jumped """
         
         board[self.y][self.x] = PIECE_EMPTY     # It just moved from here, so it's now empty
-        diff_X = x - self.x                     # Where it is moving, for jump checking, X coordinate
-        diff_Y = y - self.y                     # Same as above, Y coordinate
+        if diff_X == None:
+            diff_X = x - self.x                     # Where it is moving, for jump checking, X coordinate
+            diff_Y = y - self.y                     # Same as above, Y coordinate
         self.x = x                              # Set the piece location to the new x, y; X coordinate
         self.y = y                              # Same as above, Y coordinate
         board[y][x] = self.color                # If it jumped something
@@ -268,20 +262,7 @@ class piece:
             jump_X = x - (diff_X/2)
             jump_Y = y - (diff_Y/2)
             board[jump_Y][jump_X] = self.otherColor
-            killedPiece = getPiece(jump_X, jump_Y, notReallyDead, checkKilled, forceColor = self.otherColor)
-            if notReallyDead:
-                if self.king:
-                    self.justJumped -= 2
-                else:
-                    self.justJumped -= 1
-                if killedPiece == None:
-                    temp = getPiece(jump_X, jump_Y, notReallyDead)
-                    if temp!=None:
-                        print temp.color
-                    print "WTF undo",x,y,diff_X,diff_Y,self.otherColor
-                else:
-                    killedPiece.notReallyDead = False
-                return
+            killedPiece = getPiece(jump_X, jump_Y, checkKilled=True, forceColor=self.otherColor)
             killedPiece.killed = False
 
     def possibleMoves(self):
@@ -298,7 +279,7 @@ class piece:
         for check_X,check_Y in self.possibleMoves():
             if self.x + check_X > realBoard_X or self.x + check_X < 1 or self.y + check_Y > realBoard_Y or self.y + check_Y < 1:
                 continue
-            checkMove = self.canMove(check_X, check_Y)
+            checkMove = self.canMove_fast(check_X, check_Y)
             if checkMove[0]:
                 return True
         return False
@@ -316,30 +297,28 @@ class piece:
                 others = []
                 tempList = []
                 flag = checkMove[2]
-                wasAJump = checkMove[2]
                 last_X = check_X
                 last_Y = check_Y
                 count = 0
-                while flag and count < 5:
+                while flag and count < 3:
                     count += 1
                     foundJump = False
                     tempList.append([self.x,self.y])  #store pieces current position
-                    self.doMove(self.x + last_X, self.y + last_Y, True)  # move it to new position
+                    self.doMove(self.x + last_X, self.y + last_Y, last_X, last_Y)  # move it to new position
                     for next_X,next_Y in self.possibleMoves():
-                        if self.x + next_X > realBoard_X or self.x + next_X < 1 or self.y + next_Y > realBoard_Y or self.y + next_Y < 1:
+                        if abs(next_X)==1 or self.x + next_X > realBoard_X or self.x + next_X < 1 or self.y + next_Y > realBoard_Y or self.y + next_Y < 1:
                             continue
-                        checkMove = self.canMove_fast(next_X, next_Y)
-                        if checkMove[0] and checkMove[2]:
+                        checkMove2 = self.canMove_fast(next_X, next_Y)
+                        if checkMove2[0] and checkMove2[2]:
                             last_X = next_X
                             last_Y = next_Y
                             others.append((self.x + next_X, self.y + next_Y))
                             foundJump = True
                     flag = foundJump
-                    
                 while len(tempList)>0: # go through stored positions and undo
                     undo_X, undo_Y = tempList.pop()
-                    self.undoMove(undo_X,undo_Y,True)
-                list_of_moves.append(move(self.x, self.y, self.x + check_X, self.y + check_Y, wasAJump, others))
+                    self.undoMove(undo_X,undo_Y)
+                list_of_moves.append(checkMove[1])
         return list_of_moves
     
     def evaluate(self):
@@ -391,7 +370,7 @@ class move:
         
     """
     
-    def __init__(self, source_X, source_Y, dest_X, dest_Y, isJump=False, *others):
+    def __init__(self, source_X, source_Y, dest_X, dest_Y, isJump=False,  diff_X = None, diff_Y = None, *others):
         
         """ Constructor for the move class""" 
         
@@ -399,26 +378,28 @@ class move:
         self.source_Y = source_Y    # Same as above; Y Coordinate
         self.dest_X = dest_X        # The X coordinate after a move
         self.dest_Y = dest_Y        # Same as above; Y Coordinate
+        self.diff_X = diff_X
+        self.diff_Y = diff_Y
         self.others = others        # A list of any extra jumps
         self.isJump = isJump
         if len(others) > 0:
             self.others = others[0]
             
-    def do(self, notReallyDead=False):
+    def do(self,real = False):
         
         """ For doing moves """
         
         p = getPiece(self.source_X, self.source_Y)
-        p.doMove(self.dest_X,self.dest_Y, notReallyDead)
+        p.doMove(self.dest_X,self.dest_Y, self.diff_X, self.diff_Y)
         for other in self.others:
             if len(other) > 1:
-                p.doMove(other[0], other[1], notReallyDead)
+                p.doMove(other[0], other[1])
 
-        if not notReallyDead:
+        if real:
             record.add(self)
         
             
-    def undo(self,fake=False,checkKilled = False):
+    def undo(self):
         
         """ For undoing moves """
         
@@ -430,13 +411,11 @@ class move:
                 for i in range(1,len(self.others)):
                     other = self.others[-i-1]
                     if len(other) > 1:
-                        p.undoMove(other[0],other[1],fake,checkKilled)
-                p.undoMove(self.dest_X,self.dest_Y,fake,checkKilled) 
+                        p.undoMove(other[0],other[1])
+                p.undoMove(self.dest_X,self.dest_Y) 
         else:
             p = getPiece(self.dest_X,self.dest_Y)
-        
-        
-        p.undoMove(self.source_X, self.source_Y,fake,checkKilled)
+        p.undoMove(self.source_X, self.source_Y, -self.diff_X, -self.diff_Y)
 
 class recording:
     def __init__(self):
@@ -456,17 +435,42 @@ class recording:
 
 record = recording()
 
-def handleWin(p,redWon):
+def handleWin(isRed,redWon):
     if redWon:
-        if p.red:
+        if isRed:
             return INFINITY/2,
         else:
             return -INFINITY/2,
     else:
-        if p.red:
+        if isRed:
             return -INFINITY/2,
         else:
             return INFINITY/2,
+        
+        
+numevals = 0
+def evalstate(who):#True for red, false for black
+    global numevals
+    value = 0
+    for p in pieces:
+        if p.red==who:
+            if not p.killed:
+                if not p.king:
+                    if p.red and p.y == 1:
+                        value += 5
+                    elif not p.red and p.y == 8:
+                        value += 5
+                value += 2
+                value += 5*p.justJumped
+        if p.red != who:
+            if not p.killed:
+                value -= 2
+                
+    if who == False:#negative for black
+        value = -value
+    numevals += 1
+    return value
+    
 
 def miniMaxInit(depth):
     bestValue = -INFINITY
@@ -484,8 +488,7 @@ def miniMaxInit(depth):
     print mainClock.tick()
     return bestMove
 
-def miniMax(p, depth):
-    
+def miniMax(depth):
     """ 
         
         The main miniMax algorithm, must enter the depth that you want 
@@ -493,32 +496,33 @@ def miniMax(p, depth):
         must be an odd number. 
         
     """
-    winCheck = checkPieces(p.color)
+    global redTurn
+    winCheck = checkPieces(redTurn)
     if winCheck[0]:
-        return handleWin(p,winCheck[1])
+        return handleWin(redTurn,winCheck[1])
     if depth == 0:
-        return p.evaluate(),
+        return evalstate(redTurn),
     
     bestValue = INFINITY
     bestMove = None
-    if p.red:
+    if redTurn:
         bestValue = -INFINITY
-    moves = p.makeMoveList()
+    moves = legal_moves()
     if len(moves)==0:   # No moves in the list
-        if p.red:
+        if redTurn:
             return -INFINITY,
         return INFINITY,
     
     for move in moves:
-        move.do(True)
+        move.do()
         if depth > 1:
-            for p2 in pieces:
-                if not p2.killed and not p2.notReallyDead and p2.red == (depth%2==0): # Starts with black
-                    value = miniMax(p2,depth-1)[0]
+            redTurn = not redTurn
+            value = miniMax(depth-1)[0]
+            redTurn = not redTurn
         else:
-            value = miniMax(p,depth-1)[0]
-        move.undo(True)
-        if p.red:
+            value = miniMax(depth-1)[0]
+        move.undo()
+        if redTurn:
             if value > bestValue:
                 bestValue = value
                 bestMove = move
@@ -528,42 +532,43 @@ def miniMax(p, depth):
                 bestMove = move
     return bestValue, bestMove
 
-def alphaBeta(p, depth, alpha, beta):
+def alphaBeta(depth, alpha, beta):
     
     """ 
         
         The main miniMax algorithm, must enter the depth that you want 
         it to go to in the doComputer function, the depth entered 
         must be an odd number. 
-        
     """
-    winCheck = checkPieces(p.color)
-    if winCheck[0]:
-        return handleWin(p,winCheck[1])
-    if depth == 0:
-        return p.evaluate(),
     
-    localalpha = alpha
+    global redTurn
+    winCheck = checkPieces(redTurn)
+    if winCheck[0]:
+        return handleWin(redTurn,winCheck[1]),
+    if depth == 0:
+        return evalstate(redTurn),
+    
     bestValue = INFINITY
+    localalpha = alpha
     bestMove = None
-    if p.red:
+    if redTurn:
         bestValue = -INFINITY
-    moves = sort(p.makeMoveList())
+    moves = sort(legal_moves(),redTurn)
     if len(moves)==0:   # No moves in the list
-        if p.red:
+        if redTurn:
             return -INFINITY,
         return INFINITY,
     
     for move in moves:
-        move.do(True)
+        move.do()
         if depth > 1:
-            for p2 in pieces:
-                if not p2.killed and not p2.notReallyDead and p2.red == (depth%2==0): # Starts with black
-                    value = alphaBeta(p2,depth-1,-beta,-localalpha)[0]
+            redTurn = not redTurn
+            value = -alphaBeta(depth-1,-beta,-localalpha)[0]
+            redTurn = not redTurn
         else:
-            value = alphaBeta(p,depth-1,-beta,-localalpha)[0]
-        move.undo(True)
-        if p.red:
+            value = alphaBeta(depth-1,-beta,-localalpha)[0]
+        move.undo()
+        if redTurn:
             if value > bestValue:
                 bestValue = value
                 bestMove = move
@@ -577,82 +582,18 @@ def alphaBeta(p, depth, alpha, beta):
             localalpha = bestValue
     return bestValue, bestMove
 
-def sort(moves):
+def sort(moves,isRed):
     listToSort = []
     finalList = []
     for move in moves:
-        p = getPiece(move.source_X,move.source_Y)
-        move.do(True)
-        listToSort.append((p.evaluate(),move))
-        move.undo(True)
-    newlist = sorted(listToSort,key=lambda blah:blah[0],reverse=True)
+        #p = getPiece(move.source_X,move.source_Y)
+        move.do()
+        listToSort.append((evalstate(isRed),move))
+        move.undo()
+    newlist = sorted(listToSort,key=lambda blah:blah[0],reverse=isRed)
     for keymoves in newlist:
         finalList.append(keymoves[1])
     return finalList
-    
-    
-def depthMiniMax(depth):
-    
-    """ Allows the main miniMax function to reach a depth greater than 1 """
-    
-    allMoves = []                   # Every possible move made by the move list
-    realBestMove = None             # The actual and real best move
-    realBestValue = -sys.maxint     # The smallest number that Python can possibly display
-    for p in pieces:                # Looping through all the pieces
-        if p.red and not p.killed:
-            moves = p.makeMoveList()
-            moveCounter = 0     # The number of moves made
-            perMove = []        # A list moves and the best evaluated value associated with them
-            perMoveValue = []   # A list of values, no moves included
-            for move in moves:
-                tempDepth = depth
-                otherMoves = [] 
-                move.do(True)
-                perMoveValue.append(0) # Adds a 0 to the list so that it is not empty
-                perMove.append(0)      # Same as above
-                perMoveValue[moveCounter] = miniMax(p,0)[0] # The list perMoveCounter[0 -> it has not changed from its inital value] = miniMax(p, 0)[0] -> which means it equals 0
-                while tempDepth > 1:
-                    perDepth = []   # A list of the depths of the miniMax function ie [7, 6, 5, 4, 3, 2, 1, 0]
-                    bestValue = -INFINITY
-                    if tempDepth%2==1: # If it is a black piece (even depths are black)
-                        bestValue = INFINITY
-                    bestMove = None    # No bestMove if it is black 
-                    for p2 in pieces:
-                        if not p2.killed and not p2.notReallyDead and p2.red == (tempDepth%2==0): # Starts with black
-                            perDepth.append((miniMax(p2,1), p2.color)) 
-                    for depthList in perDepth:
-                        theMove = depthList[0]
-                        if depthList[1] == PIECE_RED and theMove[0] > bestValue: # Red piece
-                            bestValue = theMove[0]
-                            bestMove = theMove[1]
-                        elif depthList[1] == PIECE_BLACK and theMove[0] < bestValue: # Black piece
-                            bestValue = theMove[0]
-                            bestMove = theMove[1]      
-                    perMove[moveCounter] = (bestValue,move) # Adds the bestValue and the move associated with it to a list
-                    perMoveValue[moveCounter] += bestValue  # Adds just the bestValue to a list
-                    if bestMove != None:
-                        bestMove.do(True)
-                        otherMoves.append(bestMove) # Puts the bestMoves found in a new list
-                    tempDepth -= 1  # Subtract the depth by one every iteration
-                while len(otherMoves) > 0:      # Until the list of otherMoves has nothing in it the moves are undone from the list and in the game
-                    otherMoves.pop().undo(True)
-                move.undo(True)
-                moveCounter += 1  # End of the master move and depth loop
-            bestValue = -sys.maxint
-            bestIndex = -1
-            for i in range(moveCounter):
-                value = perMoveValue[i]
-                if value > bestValue:   # Red Piece
-                    bestValue = value
-                    bestIndex = i
-            if bestIndex != -1:
-                allMoves.append((bestValue,perMove[bestIndex][1]))
-    for value in allMoves: 
-        if value[0] > realBestValue:
-            realBestValue = value[0]
-            realBestMove = value[1]
-    return realBestMove  # Return best move back to doComputer()
-        
 
 def resetBoard():
     
@@ -700,26 +641,16 @@ def resetGame():
     resetBoard()
     resetPieces()      
           
-def getPiece(x, y, checkfake=False , checkKilled=False, forceColor=None):
+def getPiece(x, y, checkKilled=False, forceColor=None):
     
     """ Determines which pieces are on the board and where they are """
     
     for p in pieces:
         if p.x == x and p.y == y:      
-            if p.killed == checkKilled and (not p.notReallyDead or checkfake):  
+            if p.killed == checkKilled:  
                 if forceColor == None or forceColor == p.color:  
                     return p
     return None
-
-def startsolo():
-    
-    """ Solo game start button, against an AI Opponent. In the menu. """
-    
-    global computerPlayer, gameStarted
-    if gameOver or not computerPlayer:
-        resetGame()
-    computerPlayer = True
-    gameStarted = True
     
 def startmulti():
     
@@ -737,16 +668,38 @@ def exitbutton():
     pygame.quit()
     sys.exit()
     
+def miniMaxButton():
+    
+    global ALPHABETA, gameStarted, computerPlayer
+    ALPHABETA = False
+    if gameOver or not computerPlayer:
+        resetGame()
+    computerPlayer = True
+    gameStarted = True
+
+def alphaBetaButton():
+    
+    global ALPHABETA, gameStarted, computerPlayer
+    ALPHABETA = True
+    if gameOver or not computerPlayer:
+        resetGame()
+    computerPlayer = True
+    gameStarted = True
+    
+def negaScoutButton():
+    print "Not done yet go away"
+    
 def undoButton():
     
     """ Undoes moves from both sides using undoMove """
-    
-    record.deleteLast().undo(checkKilled=True)
+
+    record.deleteLast().undo()
 
 def mainMenuButton():
     
     global gameStarted
     gameStarted = False
+    
     
 def resetGameButton():
     
@@ -808,16 +761,18 @@ class button:
         return False
     
 buttonlist = [
-              button(286,355,173,103, "Solo", startsolo),
-              button(527,353,171,105,"Multi-Player",startmulti),
-              button(527,500,171,105,"Exit",exitbutton),
-              button(286,500,173,103,"Play",playRecordButton)
+              button(527,303,171,105,"Multi-Player",startmulti),
+              button(527,600,171,105,"Exit",exitbutton),
+              button(286,303,173,103,"Play-Back",playRecordButton),
+              button(286, 450, 173, 105, "VS MiniMax", miniMaxButton),
+              button(527, 450, 173, 105, "VS AlphaBeta", alphaBetaButton),
+              button(286, 600, 173, 105, "VS NegaScout", negaScoutButton)   
               ]
 
 inGameButtons = [
-                 button(25, 550, 150,100,"Undo",undoButton),
-                 button(25, 700, 150,100, "Main Menu", mainMenuButton),
-                 button(25, 850, 150,100, "Reset Game", resetGameButton),
+                 button(75, 200, 150,100,"Undo",undoButton),
+                 button(75, 500, 150,100, "Main Menu", mainMenuButton),
+                 button(75, 350, 150,100, "Reset Game", resetGameButton),
                  ]
 
 playBackButtons = [
@@ -847,7 +802,7 @@ def processClick(pos):
         if blah.inside(x,y):
             blah.f()
     for derp in playBackButtons:
-        if derp.inside(x,y):
+        if playingRecord and derp.inside(x,y):
             derp.f()
     if gameOver:
         return
@@ -866,7 +821,7 @@ def processClick(pos):
             canMove = selectedPiece.canMove(grid_X - selectedPiece.x, grid_Y - selectedPiece.y)
             if canMove[0]:
                 move = canMove[1]
-                move.do()
+                move.do(True)
                 if canMove[2]: # Checks to see if it can jump again - four directions to check.
                     for check_X in [2, -2]:
                         for check_Y in [2, -2]:
@@ -892,28 +847,33 @@ def endPlayerTurn():
     redTurn = not redTurn 
     checkPieces() 
     
-    
 def legal_moves():
     #othertime = mainClock.tick()
     moves = []
-    wasJump = False
+    jumpIndexs = []
+    index = 0
     for p in pieces:
-        if redTurn == p.red and not p.notReallyDead:
+        if redTurn == p.red and not p.killed:
             piecemoves = p.makeMoveList()
             for move in piecemoves:
                 if move.isJump:
-                    wasJump = True
+                    jumpIndexs.append(index)
                 moves.append(move)
-    if wasJump:
+                index += 1
+    if len(jumpIndexs)>0:
         jumpOnlyList = []
-        for move in moves:
-            if move.isJump:
-                jumpOnlyList.append(move)
+        for i in jumpIndexs:
+            jumpOnlyList.append(moves[i])
         moves = jumpOnlyList
-    #print "legal_moves() took:",mainClock.tick(),"places elsewhere:",othertime
+    #if wasJump:
+    #    jumpOnlyList = []
+    #    for move in moves:
+    #        if move.isJump:
+    #           jumpOnlyList.append(move)
+    #    moves = jumpOnlyList
     return moves
             
-    
+
 def perft(depth):
     global redTurn
     if depth == 0:
@@ -922,29 +882,42 @@ def perft(depth):
     #state = curr_state or self.curr_state
     nodes = 0
     for move in legal_moves():
-        move.do(True) 
+        move.do() 
         redTurn = not redTurn
         nodes += perft(depth-1)
         redTurn = not redTurn
-        move.undo(True)
+        move.undo()
     return nodes
 
 def perftest():
     mainClock.tick()
-    for depth in range (1,11):
+    #movee = move(1,6,2,5, diff_X = 1 , diff_Y = -1)
+    #for i in range(0,1000000):
+    #    movee.do()
+    #    movee.undo()
+    #print "1million do and undo took:", mainClock.tick()
+    
+    for depth in range (1,8):
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
 
 # Uncomment for performance test!
-perftest()
+# perftest()
     
        
 def doComputer():
     
     """ Activates the computer Player """
     
-    global selectedPiece, computerState,computerMove, redTurn
-
-    bestMove = miniMaxInit(5)
+    global selectedPiece, computerState,computerMove, redTurn,numevals
+    redTurn = not redTurn
+    mainClock.tick()
+    if ALPHABETA:
+        bestMove = alphaBeta(9,-INFINITY,INFINITY)[1]
+    else:
+        bestMove = miniMax(5)[1] 
+    print "Count:",numevals,"Time:",mainClock.tick()
+    numevals = 0
+    redTurn = not redTurn
     if bestMove != None:
         bestPiece = getPiece(bestMove.source_X,bestMove.source_Y)
         computerMove = bestMove
@@ -1087,7 +1060,7 @@ def drawtext():
     text = font2.render("FPS: " + repr(int(mainClock.get_fps())), True, WHITE)
     textRect = text.get_rect()
     textRect.centerx = boardOffSetLeft_X/2
-    textRect.centery = board_YRES/2
+    textRect.centery = 800
     windowSurface.blit(text, textRect)
 
 def updateComp():
@@ -1099,7 +1072,7 @@ def updateComp():
         computerTimer += mainClock.get_time()
         if computerState == 1:
             if computerTimer >= 1000:
-                computerMove.do()
+                computerMove.do(True)
                 computerState = 2
                 computerTimer = 0
         if computerState == 2:
