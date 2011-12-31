@@ -101,8 +101,8 @@ PIECE_VOID = 9      # No piece drawn -- Border of BitMap
 ## ============================================================================================ ##
 possibleMoves = [(2,2),(2,-2),(-2,-2),(-2,2),(1,1),(1,-1),(-1,1),(-1,-1)] # All possible moves
 movesWithoutJumps = [(1,1),(1,-1),(-1,-1),(-1,1)]                         # Moves without jumps
-redNotKing = [(2,-2),(-2,-2),(1,-1),(-1,-1)]
-blackNotKing = [(2,2),(-2,2),(1,1),(-1,1)]
+redNotKing = [(2,-2),(-2,-2),(1,-1),(-1,-1)]                              # Legal non-king red moves including jumps
+blackNotKing = [(2,2),(-2,2),(1,1),(-1,1)]                                # Same as above with black moves  
 ## ============================================================================================ ##
 
 ## ===================================================== State Variables =============================================================== ##
@@ -159,7 +159,6 @@ class piece:
         self.king = king            # King pieces
         self.red = red              # Red pieces    
         self.killed = False         # If a piece is killed it means that it has been jumped over
-        #self.notReallyDead = False  # If a piece is notReallyDead it is one which has been jumped by the computer but undone later in the game 
         self.justJumped = 0         # Pieces that have been jumped on the previous move
         if red:
             self.color = PIECE_RED
@@ -227,7 +226,7 @@ class piece:
             return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
         return False, 
     
-    def doMove(self, x, y, diff_X = None, diff_Y = None):
+    def doMove(self, x, y, diff_X=None, diff_Y=None):
         
         """ Does a move no matter what, can be temporary for computer checks """
         board[self.y][self.x] = PIECE_EMPTY         # It just moved from here, so it's now empty
@@ -247,7 +246,7 @@ class piece:
                 return
             killedPiece.killed = True
             
-    def undoMove(self,x,y, diff_X = None, diff_Y = None):
+    def undoMove(self,x,y, diff_X=None, diff_Y=None):
         
         """ Same as doMove, except replaces any piece it jumped """
         
