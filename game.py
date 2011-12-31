@@ -901,7 +901,11 @@ def perftest():
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
 
 # Uncomment for performance test!
+<<<<<<< .merge_file_iGCVFg
 # perftest()
+=======
+#perftest()
+>>>>>>> .merge_file_TtbWod
     
        
 def doComputer():
