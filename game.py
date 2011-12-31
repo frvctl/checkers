@@ -120,8 +120,12 @@ playingRecord = False       # Determines if the recording is being played
 playState = 0               # Used for going through the recorded game
 playIndex = 0               # Same as above
 awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
-playSpeed = 1000
-ALPHABETA = False
+playSpeed = 1000            # The standard speed for play back, 1 second per move
+ALPHABETA = False           # Determines which AI algorithm is running
+MINIMAX = False
+NEGASCOUT = False
+numevals = 0
+forceJumpList = []
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -179,6 +183,7 @@ class piece:
                 return blackKingStretched
             return blackpieceStretched
         
+        
     def canMove(self, diff_X, diff_Y):
         
         """ 
@@ -189,7 +194,6 @@ class piece:
         
         if abs(diff_X) != abs(diff_Y) or abs(diff_X) > 2 or abs(diff_Y) > 2:    
             return False,                                                   
-        
         if diff_Y < 0 and not self.red and not self.king:    
             return False,
         if diff_Y > 0 and self.red and not self.king:    
@@ -198,14 +202,14 @@ class piece:
         temp_Y = self.y + diff_Y  # Y Coordinate after a move 
         if board[temp_Y][temp_X] == 0:      # If true then it can move there
             if abs(diff_X) > 1:
-                unit_X = diff_X / 2#abs(diff_X)   # Turns the X coordinate into a 1 or -1 
-                unit_Y = diff_Y / 2#abs(diff_Y)
-                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, move(self.x,self.y,temp_X,temp_Y,True,diff_X,diff_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
-                else:                                                             # Else the above falls through - returns False (it cannot move) 
-                    return False,                                                 # returns False (it cannot move)  
-            return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
-        return False,                                                             # Assuming none of the above apply returns False (it cannot move) 
+                unit_X = diff_X / 2   # Turns the X coordinate into a 1 or -1 
+                unit_Y = diff_Y / 2
+                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:                  # If diff_X is greater than one and is a black piece it is a valid jump
+                    return True, move(self.x,self.y,temp_X,temp_Y,True,diff_X,diff_Y) , True    # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                else:                                                                           # Else the above falls through - returns False (it cannot move) 
+                    return False,                                                               # returns False (it cannot move)  
+            return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False          # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
+        return False,                                                                           # Assuming none of the above apply returns False (it cannot move) 
 
     def canMove_fast(self, diff_X, diff_Y):
         
@@ -219,11 +223,11 @@ class piece:
             if abs(diff_X) > 1:
                 unit_X = diff_X / 2#abs(diff_X)   # Turns the X coordinate into a 1 or -1 
                 unit_Y = diff_Y / 2#abs(diff_Y)
-                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:    # If diff_X is greater than one and is a black piece it is a valid jump
-                    return True, move(self.x,self.y,temp_X,temp_Y,True,diff_X,diff_Y) , True         # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
-                else:                                                             # Else the above falls through - returns False (it cannot move) 
-                    return False,                                                 # returns False (it cannot move)  
-            return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False                # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
+                if board[temp_Y - unit_Y][temp_X - unit_X] == self.otherColor:                   # If diff_X is greater than one and is a black piece it is a valid jump
+                    return True, move(self.x,self.y,temp_X,temp_Y,True,diff_X,diff_Y) , True     # Returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and True (since it is a jump move)
+                else:                                                                            # Else the above falls through - returns False (it cannot move) 
+                    return False,                                                                # returns False (it cannot move)  
+            return True, move(self.x,self.y,temp_X,temp_Y,False,diff_X,diff_Y) , False           # Applies the first if - assuming all else falls through - returns True (it can move) - temp_X and temp_Y (the coordinates after the move) - and False (it is not a jump)
         return False, 
     
     def doMove(self, x, y, diff_X=None, diff_Y=None):
@@ -231,8 +235,8 @@ class piece:
         """ Does a move no matter what, can be temporary for computer checks """
         board[self.y][self.x] = PIECE_EMPTY         # It just moved from here, so it's now empty
         if diff_X == None:
-            diff_X = x - self.x                         # Where it is moving, for jump checking, X coordinate 
-            diff_Y = y - self.y                         # Same as above, Y Coordinate
+            diff_X = x - self.x                     # Where it is moving, for jump checking, X coordinate 
+            diff_Y = y - self.y                     # Same as above, Y Coordinate
         self.x = x                                  # Set the piece location to the new x, y; X coordinate
         self.y = y                                  # Same as above, Y Coordinate
         board[y][x] = self.color                    # Set the new board location
@@ -252,8 +256,8 @@ class piece:
         
         board[self.y][self.x] = PIECE_EMPTY     # It just moved from here, so it's now empty
         if diff_X == None:
-            diff_X = x - self.x                     # Where it is moving, for jump checking, X coordinate
-            diff_Y = y - self.y                     # Same as above, Y coordinate
+            diff_X = x - self.x                 # Where it is moving, for jump checking, X coordinate
+            diff_Y = y - self.y                 # Same as above, Y coordinate
         self.x = x                              # Set the piece location to the new x, y; X coordinate
         self.y = y                              # Same as above, Y coordinate
         board[y][x] = self.color                # If it jumped something
@@ -265,6 +269,7 @@ class piece:
             killedPiece.killed = False
 
     def possibleMoves(self):
+ 
         if self.king:
             return possibleMoves
         if self.red:
@@ -369,7 +374,7 @@ class move:
         
     """
     
-    def __init__(self, source_X, source_Y, dest_X, dest_Y, isJump=False,  diff_X = None, diff_Y = None, *others):
+    def __init__(self, source_X, source_Y, dest_X, dest_Y, isJump=False,  diff_X=None, diff_Y=None, *others):
         
         """ Constructor for the move class""" 
         
@@ -383,8 +388,8 @@ class move:
         self.isJump = isJump
         if len(others) > 0:
             self.others = others[0]
-            
-    def do(self,real = False):
+        
+    def do(self,real=False):
         
         """ For doing moves """
         
@@ -446,8 +451,7 @@ def handleWin(isRed,redWon):
         else:
             return INFINITY/2,
         
-        
-numevals = 0
+    
 def evalstate(who):#True for red, false for black
     global numevals
     value = 0
@@ -488,6 +492,7 @@ def miniMaxInit(depth):
     return bestMove
 
 def miniMax(depth):
+    
     """ 
         
         The main miniMax algorithm, must enter the depth that you want 
@@ -581,6 +586,55 @@ def alphaBeta(depth, alpha, beta):
             localalpha = bestValue
     return bestValue, bestMove
 
+def negaScout(maxDepth, currentDepth, alpha, beta):
+    
+    """ 
+        
+        The main miniMax algorithm, must enter the depth that you want 
+        it to go to in the doComputer function, the depth entered 
+        must be an odd number. 
+    """
+    
+    global redTurn, currentScore
+    winCheck = checkPieces(redTurn)
+    if winCheck[0]:
+        return handleWin(redTurn,winCheck[1]),
+    if currentDepth == maxDepth:
+        return evalstate(redTurn),
+    
+    
+    adaptiveBeta = beta
+    bestMove = None
+    bestValue = -INFINITY
+    
+        
+    moves = sort(legal_moves(),redTurn)
+    if len(moves)==0:   # No moves in the list
+        if redTurn:
+            return -INFINITY,
+        return INFINITY,
+    
+    for move in moves:
+        move.do()
+        if currentDepth > 1:
+            redTurn = not redTurn
+            recursedScore = negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
+            currentScore = -recursedScore
+            redTurn = not redTurn
+        else:
+            recursedScore = negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
+        move.undo()
+        if currentScore > bestValue:
+            if adaptiveBeta == beta or currentDepth >= maxDepth-2:
+                bestValue = currentScore
+                bestMove = move
+         
+        if bestValue >= beta:
+            break
+        else:
+            adaptiveBeta = max(alpha, bestValue)+1
+    return bestValue, bestMove
+
 def sort(moves,isRed):
     listToSort = []
     finalList = []
@@ -669,8 +723,8 @@ def exitbutton():
     
 def miniMaxButton():
     
-    global ALPHABETA, gameStarted, computerPlayer
-    ALPHABETA = False
+    global MINIMAX, gameStarted, computerPlayer
+    MINIMAX = True
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
@@ -684,9 +738,15 @@ def alphaBetaButton():
         resetGame()
     computerPlayer = True
     gameStarted = True
-    
+
 def negaScoutButton():
-    print "Not done yet go away"
+    
+    global gameStarted, computerPlayer, NEGASCOUT
+    NEGASCOUT = True
+    if gameOver or not computerPlayer:
+        resetGame()
+    computerPlayer = True
+    gameStarted = True
     
 def undoButton():
     
@@ -797,14 +857,15 @@ def processClick(pos):
             if button.inside(x,y):
                 button.f()
         return
-    for blah in inGameButtons:
-        if blah.inside(x,y):
-            blah.f()
-    for derp in playBackButtons:
-        if playingRecord and derp.inside(x,y):
-            derp.f()
+    for theButton in inGameButtons:
+        if theButton.inside(x,y):
+            theButton.f()
+    for aButton in playBackButtons:
+        if playingRecord and aButton.inside(x,y):
+            aButton.f()
     if gameOver:
         return
+    
     grid_X = ((x-boardOffSetLeft_X) / CELL_X) + 1
     grid_Y = (y / CELL_Y) + 1
     realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
@@ -847,7 +908,7 @@ def endPlayerTurn():
     checkPieces() 
     
 def legal_moves():
-    #othertime = mainClock.tick()
+
     moves = []
     jumpIndexs = []
     index = 0
@@ -912,8 +973,13 @@ def doComputer():
     mainClock.tick()
     if ALPHABETA:
         bestMove = alphaBeta(9,-INFINITY,INFINITY)[1]
-    else:
+        print 'alphabeta'
+    elif MINIMAX:
         bestMove = miniMax(5)[1] 
+        print 'minimax'
+    else:
+        bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
+        print 'negascout'
     print "Count:",numevals,"Time:",mainClock.tick()
     numevals = 0
     redTurn = not redTurn
