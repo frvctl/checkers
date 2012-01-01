@@ -3,29 +3,27 @@
 ## -> Checker's Game with an AI opponent                            ##
 ## -> Still very much in production                                 ##
 ## -> Compare the effectiveness of three heuristic search algorithms##
-## namely the MiniMax, NegaScout, and Alpha-Beta                    ##
+##    namely the MiniMax, NegaScout, and Alpha-Beta                 ##
 ## ==========================DATES================================  ##
 ## -> Start: 11-5-11                                                ##
 ## -> Version 1: 11-6-11                                            ##
 ## -> Version 2: Pictures + Menu: 11-7-11                           ##
 ## -> Version 3: MiniMax added and refined 12-19-11 --> 12-23-11    ## 
 ## -> Version 4: Added comments, refined code for readability       ##
-##    12-24-11                                                      ## 
+##               12-24-11                                           ## 
 ## -> Version 5: Added recording and play back  --> 12-26-11        ##
+## -> Version 6: Complete revision of board system --> 12-31-11     ##
 ## ==========================TODO=================================  ##
 ## Aesthetics:                                                      ##
 ##            => New Edge design for in game board                  ##
 ##            => Different colors and possibly graphics             ##
 ##            => New menu                                           ##
 ##            => More in game user feedback                         ##
-##            => Standardized scoring/move piece notation           ##
 ## Artificial Intelligence:                                         ##
-##            => Refine AlphaBeta and add NegaScout                 ##
-##                 => Perfect*** move sorting                       ##
+##            => Um... Evaluation...?
 ##            => Ability for the AI to play against itself          ##
 ## General:                                                         ##
 ##            => Compartmentalize the code completely               ##
-##            => Add mandatory jump ** High priority **             ##
 ## ================================================================ ##
 
 ## ======== Imports ========= ##
@@ -44,14 +42,14 @@ INFINITY = 99999999 # Constant used for the AI algorithms
 
 ## ======================================= Size of the window ====================================== ##
 boardOffSetLeft_X = 300  # The extra space on the left - used for displaying information to the user
-board_XRES = 1000    # Length of the board   
-board_YRES = 1000    # Width of the board
+board_XRES = 1000        # Length of the board   
+board_YRES = 1000        # Width of the board
 ## ================================================================================================= ##
 
-## ================================== Window Surface ==================================== ##
+## ================================== Window Surface ======================================= ##
 windowSurface = pygame.display.set_mode((board_XRES + boardOffSetLeft_X, board_YRES), 0, 32)
 pygame.display.set_caption('Checkers!')
-## ====================================================================================== ##
+## ========================================================================================= ##
 
 ## ============================= Fonts ================================= ##
 font1 = pygame.font.SysFont(None, 60, bold = True, italic = True)
@@ -68,35 +66,40 @@ GOLD = (255, 215, 0)
 ORANGE = (255, 128, 0)
 ## ============================ ##
 
-## ======================================== Board Variables ============================================= ##
-CELL_X = board_XRES / 8  # Length of a single checker square
+## ============================================================ ##
+CELL_X = board_XRES / 8   # Length of a single checker square
 CELL_Y = board_YRES / 8   # Height of a single checker square
-## ====================================================================================================== ##
-#   (black)
-#            45  46  47  48
-#          39  40  41  42
-#            34  35  36  37
-#          28  29  30  31
-#            23  24  25  26
-#          17  18  19  20
-#            12  13  14  15
-#          6   7   8   9
-#   (red)
-## ========= Piece constants based on BitMap ============= ##
+## ============================================================ ##
+
+## Visual Representation of the board and numbers assigned to it ##
+        ## ==== Black Pieces ==== ##
+        ##      45  46  47  48    ##
+        ##    39  40  41  42      ##
+        ##      34  35  36  37    ##
+        ##    28  29  30  31      ##
+        ##      23  24  25  26    ##
+        ##    17  18  19  20      ##  
+        ##      12  13  14  15    ##
+        ##    6   7   8   9       ##
+        ## ===== Red Pieces ===== ##
+## ============================================================== ##
+
+## ====== Piece constants ======= ##
 OCCUPIED = 0
 PIECE_BLACK = 1
 PIECE_RED = 2
 MAN = 4
 KING = 8
 FREE = 16
+## ============================= ## 
 
-COLORS = PIECE_BLACK | PIECE_RED
+COLORS = PIECE_BLACK | PIECE_RED    
 TYPES = OCCUPIED | PIECE_BLACK | PIECE_RED | MAN | KING | FREE
 
-BLACK_IDX = [-5,-6]
-RED_IDX = [5,6]
-KING_IDX = [-6,-5,5,6]
-## ======================================================= ##
+BLACK_INDEX = [-5,-6]       # Possible black moves 
+RED_INDEX = [5,6]           # Possible red moves
+KING_INDEX = [-6,-5,5,6]    # All possible king moves
+## ==================================================================== ##
 
 
 valid_squares = [6,7,8,9,12,13,14,15,17,18,19,20,23,24,25,26,
@@ -105,8 +108,7 @@ valid_squares = [6,7,8,9,12,13,14,15,17,18,19,20,23,24,25,26,
 value = [0,0,0,0,0,1,256,0,0,16,4096,0,0,0,0,0,0]
 edge = [6,7,8,9,15,17,26,28,37,39,45,46,47,48]
 center = [18,19,24,25,29,30,35,36]
-# values used to calculate tempo -- one for each square on board (0, 48)
-row = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,2,2,2,2,0,0,3,3,3,3,0,
+row = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,2,2,2,2,0,0,3,3,3,3,0,  # values used to calculate tempo -- one for each square on board (0, 48)
            4,4,4,4,0,0,5,5,5,5,0,6,6,6,6,0,0,7,7,7,7]
 safeedge = [9,15,39,45]
 
@@ -155,7 +157,8 @@ ALPHABETA = False           # Determines which AI algorithm is running
 MINIMAX = False
 NEGASCOUT = False
 numevals = 0
-forceJumpList = []
+players = []
+playerIndexs = []
 ## ===================================================================================================================================== ##
 
 ## ========================== Loads Images ============================== ##
@@ -230,6 +233,7 @@ def handleWin(isRed,redWon):
            
 def evalstate(who):#True for red, false for black
     global numevals
+    numevals += 1
     value = 1
     value = board[value+6-who+who*7/value]+8
     value /= value*.08
@@ -238,12 +242,10 @@ def evalstate(who):#True for red, false for black
     return value
 
 def miniMax(depth):   
-    """ 
-        
+    """   
         The main miniMax algorithm, must enter the depth that you want 
         it to go to in the doComputer function, the depth entered 
         must be an odd number. 
-        
     """
     global redTurn
     winCheck = checkPieces(whosTurn)
@@ -278,7 +280,6 @@ def miniMax(depth):
 
 def alphaBeta(depth, alpha, beta):    
     """ 
-        
         The main miniMax algorithm, must enter the depth that you want 
         it to go to in the doComputer function, the depth entered 
         must be an odd number. 
@@ -317,8 +318,7 @@ def alphaBeta(depth, alpha, beta):
     return bestValue, bestMove
 
 def negaScout(maxDepth, currentDepth, alpha, beta):   
-    """ 
-        
+    """  
         The main miniMax algorithm, must enter the depth that you want 
         it to go to in the doComputer function, the depth entered 
         must be an odd number. 
@@ -368,20 +368,26 @@ def sort(moves,isRed):
     for keymoves in newlist:
         finalList.append(keymoves[1])
     return finalList
-
+    
 def resetBoard():  
-    """ Redraw's the board, using the BitMap """
+    
+    """ 
+        Redraw's the board, numbers based on the board below 
+    
+        ## ==== Black Pieces ==== ##
+        ##      45  46  47  48    ##
+        ##    39  40  41  42      ##
+        ##      34  35  36  37    ##
+        ##    28  29  30  31      ##
+        ##      23  24  25  26    ##
+        ##    17  18  19  20      ##  
+        ##      12  13  14  15    ##
+        ##    6   7   8   9       ##
+        ## ===== Red Pieces ===== ##
+        
+    """
     global board
-    #   (black)
-    #            45  46  47  48
-    #          39  40  41  42
-    #            34  35  36  37
-    #          28  29  30  31
-    #            23  24  25  26
-    #          17  18  19  20
-    #            12  13  14  15
-    #          6   7   8   9
-    #   (red)
+
     board = [OCCUPIED for i in range(56)]
     s = board
     for i in range(0, 4):
@@ -426,7 +432,8 @@ def alphaBetaButton():
     gameStarted = True
 
 def negaScoutButton():
-    global gameStarted, computerPlayer, NEGASCOUT
+    global gameStarted, computerPlayer, NEGASCOUT,players
+    players = [ComputerPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED)]
     NEGASCOUT = True
     if gameOver or not computerPlayer:
         resetGame()
@@ -435,7 +442,10 @@ def negaScoutButton():
     
 def undoButton():
     """ Undoes moves from both sides using undoMove """
-    record.deleteLast().undo()
+
+    undo = record.deleteLast()
+    if undo: undo.undo()
+
 
 def mainMenuButton(): 
     global gameStarted
@@ -466,6 +476,40 @@ def menuInRecordingButton():
     playingRecord = False
     gameStarted = False
     
+class Player:
+    def __init__(self,color):
+        self.col = color
+        self.started = False
+    def getColor(self):
+        return self.col
+class HumanPlayer(Player):
+    def __init__(self,color):
+        Player.__init__(self, color)
+    def startTurn(self):
+        global playerIndexs
+        self.started = True
+        print "making index list, derp"
+        
+        moves = legal_moves()
+        indexs = []
+        for move in moves:
+            changes = move.affectedSquares[:]
+            firstindex = changes[0][0]
+            secondindex = changes[1][0]
+            try:
+                secondindex = changes[2][0]
+            except:
+                pass
+            indexs.append([firstindex,secondindex,move])
+        print indexs
+        playerIndexs = indexs
+class ComputerPlayer(Player):
+    def __init__(self,color):
+        Player.__init__(self, color)
+    def startTurn(self):
+        self.started = True
+        doComputer()
+        
 class button:
     """ Used for the menu """
     def __init__(self,x,y,w,h,text,f): 
@@ -544,42 +588,31 @@ def processClick(mousePos):
         index = None
     #realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
     if selectedIndex:
-            currentMoves = legal_moves()#move somewhere where it is once per player turn, not click
-            possibleIndexs = []
-            realMove = None
-            for move in currentMoves:
-                values = move.affectedSquares[:]
-                if values[0][0]==selectedIndex:
-                    possibleIndexs.append(values[-1][0])
-                    if values[-1][0]==index:
-                        realMove = move
             if selectedIndex == index:
-                if awaitingSecondJump:
-                    endPlayerTurn()
-                else:
-                    selectedIndex = None
-                return
-            elif index and not awaitingSecondJump:
-                if board[index]&whosTurn:# and index in currentMoves:
-                    selectedIndex = index # The selected piece is now equal to realPiece
-            if index in possibleIndexs:
-                if realMove:
-                    realMove.do(True)
                 selectedIndex = None
-                #add double jump check here OR fix possibleIndexs to include it
-                endPlayerTurn()        
+                return
+            elif index:
+                for checkIdx in playerIndexs:
+                    start = checkIdx[0]
+                    if index == start:# and index in currentMoves:
+                        selectedIndex = index # The selected piece is now equal to realPiece
+                
+            for checkIdx in playerIndexs:
+                start,dest = checkIdx[:2]
+                if (selectedIndex, index) == (start,dest):
+                    checkIdx[2].do()
+                    endPlayerTurn()
+                    selectedIndex = None     
             return
-    if index:
-        if board[index]&whosTurn:# and index in currentMoves:
-            selectedIndex = index
+    elif index:
+        for checkIdx in playerIndexs:
+            start = checkIdx[0]
+            if index == start:# and index in currentMoves:
+                selectedIndex = index # The selected piece is now equal to realPiece
             
 def endPlayerTurn():
-    global selectedPiece,redTurn,awaitingSecondJump
-    selectedIndex = None
-    awaitingSecondJump = False
-    if computerPlayer:
-        doComputer()
-        return
+    for player in players:
+        player.started = False
     checkPieces() 
     
 def legal_moves():
@@ -591,66 +624,70 @@ def getEnemy():
 def getMoves():
     moves = []
     player = whosTurn
-    valid_indices = RED_IDX if player == PIECE_RED else BLACK_IDX
+    valid_indices = RED_INDEX if player == PIECE_RED else BLACK_INDEX
     for i in valid_squares:
-        for j in valid_indices:
-            dest = i+j
-            if (board[i]&player and board[i]&MAN and board[dest]&FREE):
-                sq1 = [i,player|MAN,FREE]
-                if ((player == PIECE_RED and i>=39) or (player == PIECE_BLACK and i<=15)):
-                    sq2 = [dest,FREE,player|KING]
-                else:
-                    sq2 = [dest,FREE,player|MAN]
-                moves.append(move([sq1,sq2]))
-        for j in KING_IDX:
-            dest = i+j
-            if (board[i]&player and board[i]&KING and board[dest]&FREE):
-                sq1 = [i,player|KING,FREE]
-                sq2 = [dest,FREE,player|KING]
-                moves.append(move([sq1,sq2]))
+        if (board[i]&player):
+            if(board[i]&MAN):
+                for j in valid_indices:
+                    dest = i+j
+                    if (board[dest]&FREE):
+                        sq1 = [i,player|MAN,FREE]
+                        if ((player == PIECE_RED and i>=39) or (player == PIECE_BLACK and i<=15)):
+                            sq2 = [dest,FREE,player|KING]
+                        else:
+                            sq2 = [dest,FREE,player|MAN]
+                        moves.append(move([sq1,sq2]))
+            if (board[i]&KING):                
+                for j in KING_INDEX:
+                    dest = i+j
+                    if (board[dest]&FREE):
+                        sq1 = [i,player|KING,FREE]
+                        sq2 = [dest,FREE,player|KING]
+                        moves.append(move([sq1,sq2]))
     return moves
 
 def getJumps():
     jumps = []
     player = whosTurn
     enemy = getEnemy()
-    valid_indices = RED_IDX if player == PIECE_RED else BLACK_IDX
+    valid_indices = RED_INDEX if player == PIECE_RED else BLACK_INDEX
     for i in valid_squares:
-        if (board[i]&player and board[i]&MAN):
-            for j in valid_indices:
-                mid = i+j
-                dest = i+j*2
-                if (board[mid]&enemy and board[dest]&FREE):
-                    sq1 = [i,player|MAN,FREE]
-                    sq2 = [mid, board[mid], FREE]
-                    if ((player == PIECE_RED and i>=34) or (player == PIECE_BLACK and i<=20)):
-                        sq3 = [dest,FREE,player|KING]
-                    else:
-                        sq3 = [dest,FREE,player|MAN]
-                    jump = [move([sq1,sq2,sq3])]
-                    visited = set()
-                    visited.add((i,mid,dest))
-                    temp = board[i]
-                    board[i] = FREE
-                    extraJumps = getExtendedJumps(valid_indices, jump, captureMan, visited)
-                    board[i] = temp
-                    jumps.extend(extraJumps)
-        if (board[i]&player and board[i]&KING):
-            for j in KING_IDX:
-                mid = i+j
-                dest = i+j*2
-                if (board[mid]&enemy and board[dest]&FREE):
-                    sq1 = [i,player|KING,FREE]
-                    sq2 = [mid,board[mid],FREE]
-                    sq3 = [dest,board[dest],player|KING]
-                    jump = [move([sq1,sq2,sq3])]
-                    visited = set()
-                    visited.add((i,mid,dest))
-                    temp = board[i]
-                    board[i] = FREE
-                    extraJumps = getExtendedJumps(valid_indices, jump, captureKing, visited)
-                    board[i] = temp
-                    jumps.extend(extraJumps)
+        if (board[i]&player):
+            if (board[i]&MAN):
+                for j in valid_indices:
+                    mid = i+j
+                    dest = i+j*2
+                    if (board[mid]&enemy and board[dest]&FREE):
+                        sq1 = [i,player|MAN,FREE]
+                        sq2 = [mid, board[mid], FREE]
+                        if ((player == PIECE_RED and i>=34) or (player == PIECE_BLACK and i<=20)):
+                            sq3 = [dest,FREE,player|KING]
+                        else:
+                            sq3 = [dest,FREE,player|MAN]
+                            jump = [move([sq1,sq2,sq3])]
+                            visited = set()
+                            visited.add((i,mid,dest))
+                            temp = board[i]
+                            board[i] = FREE
+                            extraJumps = getExtendedJumps(valid_indices, jump, captureMan, visited)
+                            board[i] = temp
+                            jumps.extend(extraJumps)
+            if (board[i]&KING):
+                for j in KING_INDEX:
+                    mid = i+j
+                    dest = i+j*2
+                    if (board[mid]&enemy and board[dest]&FREE):
+                        sq1 = [i,player|KING,FREE]
+                        sq2 = [mid,board[mid],FREE]
+                        sq3 = [dest,board[dest],player|KING]
+                        jump = [move([sq1,sq2,sq3])]
+                        visited = set()
+                        visited.add((i,mid,dest))
+                        temp = board[i]
+                        board[i] = FREE
+                        extraJumps = getExtendedJumps(valid_indices, jump, captureKing, visited)
+                        board[i] = temp
+                        jumps.extend(extraJumps)
     return jumps
 
 def getExtendedJumps(valid_moves, captures, add_sq_func, visited):
@@ -665,7 +702,7 @@ def getExtendedJumps(valid_moves, captures, add_sq_func, visited):
             last_pos = capture[-1][0]
             mid = last_pos + j
             dest = last_pos + j*2
-            if ((last_pos,mid,dest) not in visited and (dest,mid,last_pos) not in visited and board[mid]&enemy and board[dest]&FREE):
+            if (board[mid]&enemy and board[dest]&FREE and (last_pos,mid,dest) not in visited and (dest,mid,last_pos) not in visited):
                 sq2, sq3 = add_sq_func(player,mid,dest,last_pos)
                 capture[-1][2] = FREE
                 capture.extend([sq2,sq3])
@@ -715,7 +752,7 @@ def perftest():
       
 def doComputer():
     """ Activates the computer Player """
-    global selectedPiece, computerState,computerMove, redTurn,numevals
+    global selectedIndex, computerState,computerMove,numevals
     mainClock.tick()
     if ALPHABETA:
         bestMove = alphaBeta(9,-INFINITY,INFINITY)[1]
@@ -725,10 +762,11 @@ def doComputer():
         bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
     print "Count:",numevals,"Time:",mainClock.tick()
     numevals = 0
-    redTurn = not redTurn
-    if bestMove != None:
+    if bestMove:
         computerMove = bestMove
+        selectedIndex = bestMove.affectedSquares[0][0]
         computerState = 1
+        
     else: print "whaaaat"
                  
 def drawBoard(): 
@@ -777,7 +815,9 @@ def drawPlayBackButtons():
         button.draw()
     
 def eventCheck(event):
-    """ Checks for input from user. If mouse button is clicked utilizes processClick function. """   
+    
+    """ Checks for input from user. If mouse button is clicked utilizes processClick function. """  
+     
     global gameOver,gameStarted
     if event.type == MOUSEBUTTONDOWN:
         processClick(event.pos)
@@ -789,23 +829,19 @@ def eventCheck(event):
 
 def checkPieces(color=None):
     """ 
-    
         Checks for various attributes of pieces after each move 
         Also Checks for winners and determines the winner or if there is a tie.
-        
     """
     global gameOver, playerWon, whosTurn
     redCanMove = False
     blackCanMove = False
     if legal_moves():
-        print whosTurn,"has moves!"
         if whosTurn == PIECE_RED:
             redCanMove = True
         else:
             blackCanMove = True
     whosTurn ^= COLORS
     if legal_moves():
-        print whosTurn,"has moves!"
         if whosTurn == PIECE_RED:
             redCanMove = True
         else:
@@ -821,7 +857,6 @@ def checkPieces(color=None):
         gameOver = True
         playerWon = "Tie"
     if color != None:
-        print gameOver,redCanMove,blackCanMove
         winnerFound = gameOver
         currentPlayerWon = False
         gameOver = False
@@ -865,26 +900,26 @@ def drawtext():
 
 def updateComp():
     """ Slows the computer down so that is not super fast - increases playability """
-    global selectedPiece, computerMove, computerTimer, redTurn, computerState
+    global computerMove, computerTimer, computerState, selectedIndex
     if computerState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
         if computerState == 1:
             if computerTimer >= 1000:
                 computerMove.do(True)
+                selectedIndex = computerMove.affectedSquares[-1][0]
                 computerState = 2
                 computerTimer = 0
         if computerState == 2:
             if computerTimer >= 500:
-                selectedPiece = None
                 computerTimer = 0
+                selectedIndex = None
                 computerMove = None
                 computerState = 0
-                redTurn = False
-                checkPieces() 
+                endPlayerTurn()
 
 def updateRecord():
     """ Is responsible for playing back the recorded list """
-    global selectedPiece, playState,playIndex,playingRecord,computerTimer, fast
+    global selectedPiece, playState,playIndex,playingRecord,computerTimer
     if playState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
         if playState == 1:
@@ -904,16 +939,21 @@ def updateRecord():
                 checkPieces()   
                     
 def updateGame():
+    
     """ 
     
         All functions that update the game are encapsulated here. 
         Starts updated when game starts or show's the menu on startup
         
     """
+    
     mainClock.tick()
     if playingRecord:
         updateRecord()
     if gameStarted and not playingRecord:
+        for player in players:
+            if not player.started and player.getColor() == whosTurn:
+                player.startTurn()
         updateComp()
         drawInGameButtons()
         drawBoard()
