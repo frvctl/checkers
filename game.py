@@ -322,6 +322,7 @@ class piece:
                 while len(tempList)>0: # go through stored positions and undo
                     undo_X, undo_Y = tempList.pop()
                     self.undoMove(undo_X,undo_Y)
+                checkMove[1].others = others
                 list_of_moves.append(checkMove[1])
         return list_of_moves
     
@@ -442,14 +443,14 @@ record = recording()
 def handleWin(isRed,redWon):
     if redWon:
         if isRed:
-            return INFINITY/2,
+            return INFINITY/2
         else:
-            return -INFINITY/2,
+            return -INFINITY/2
     else:
         if isRed:
-            return -INFINITY/2,
+            return -INFINITY/2
         else:
-            return INFINITY/2,
+            return INFINITY/2
         
     
 def evalstate(who):#True for red, false for black
@@ -572,14 +573,11 @@ def alphaBeta(depth, alpha, beta):
         else:
             value = alphaBeta(depth-1,-beta,-localalpha)[0]
         move.undo()
-        if redTurn:
-            if value > bestValue:
-                bestValue = value
-                bestMove = move
-        else:
-            if value < bestValue:
-                bestValue = value
-                bestMove = move
+        
+        if value > bestValue:
+            bestValue = value
+            bestMove = move
+        
         if bestValue >= beta:
             break
         if bestValue > localalpha:
@@ -595,7 +593,7 @@ def negaScout(maxDepth, currentDepth, alpha, beta):
         must be an odd number. 
     """
     
-    global redTurn, currentScore
+    global redTurn
     winCheck = checkPieces(redTurn)
     if winCheck[0]:
         return handleWin(redTurn,winCheck[1]),
@@ -616,13 +614,12 @@ def negaScout(maxDepth, currentDepth, alpha, beta):
     
     for move in moves:
         move.do()
-        if currentDepth > 1:
-            redTurn = not redTurn
-            recursedScore = negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
-            currentScore = -recursedScore
-            redTurn = not redTurn
+        if currentDepth+1==maxDepth:
+            currentScore = negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
         else:
-            recursedScore = negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
+            redTurn = not redTurn
+            currentScore = -negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
+            redTurn = not redTurn
         move.undo()
         if currentScore > bestValue:
             if adaptiveBeta == beta or currentDepth >= maxDepth-2:
@@ -973,13 +970,10 @@ def doComputer():
     mainClock.tick()
     if ALPHABETA:
         bestMove = alphaBeta(9,-INFINITY,INFINITY)[1]
-        print 'alphabeta'
     elif MINIMAX:
         bestMove = miniMax(5)[1] 
-        print 'minimax'
     else:
         bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
-        print 'negascout'
     print "Count:",numevals,"Time:",mainClock.tick()
     numevals = 0
     redTurn = not redTurn
