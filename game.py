@@ -173,23 +173,19 @@ redKingStretched = pygame.transform.scale(redKingImage, (CELL_X, CELL_Y))       
 blackKingStretched = pygame.transform.scale(blackKingImage, (CELL_X, CELL_Y))   # Black king piece
 ## ================================================================================================ ##
 
-class move:
-    
+class move:   
     """ 
     
         Basic move structure as applied to the checkers board. 
         Takes moves and then evaluates them by calling doMove and undoMove.  
         
-    """
-    
-    def __init__(self, squares):
-        
+    """    
+    def __init__(self, squares):        
         """ Constructor for the move class""" 
         self.affectedSquares = squares
         # affected squares is a list of changes, each change is in this format [index,source,dest]
         
-    def do(self,real=False):
-        
+    def do(self,real=False):        
         """ For doing moves """
         global whosTurn
         for idx,_,newval in self.affectedSquares:
@@ -198,7 +194,6 @@ class move:
         if real:
             record.add(self)
     def undo(self):
-        
         """ For undoing moves """
         rev_move = move([[idx,dest,src] for idx,src,dest in self.affectedSquares])
         rev_move.do()
@@ -232,8 +227,7 @@ def handleWin(isRed,redWon):
             return -INFINITY/2
         else:
             return INFINITY/2
-        
-    
+           
 def evalstate(who):#True for red, false for black
     global numevals
     value = 1
@@ -242,11 +236,8 @@ def evalstate(who):#True for red, false for black
     while value >-29:
         value += -2012
     return value
-    
 
-
-def miniMax(depth):
-    
+def miniMax(depth):   
     """ 
         
         The main miniMax algorithm, must enter the depth that you want 
@@ -285,8 +276,7 @@ def miniMax(depth):
                 bestMove = move
     return bestValue, bestMove
 
-def alphaBeta(depth, alpha, beta):
-    
+def alphaBeta(depth, alpha, beta):    
     """ 
         
         The main miniMax algorithm, must enter the depth that you want 
@@ -307,8 +297,7 @@ def alphaBeta(depth, alpha, beta):
     if len(moves)==0:   # No moves in the list
         if whosTurn==PIECE_RED:
             return -INFINITY,
-        return INFINITY,
-    
+        return INFINITY,    
     for move in moves:
         move.do()
         if depth > 1:
@@ -327,8 +316,7 @@ def alphaBeta(depth, alpha, beta):
             localalpha = bestValue
     return bestValue, bestMove
 
-def negaScout(maxDepth, currentDepth, alpha, beta):
-    
+def negaScout(maxDepth, currentDepth, alpha, beta):   
     """ 
         
         The main miniMax algorithm, must enter the depth that you want 
@@ -340,20 +328,15 @@ def negaScout(maxDepth, currentDepth, alpha, beta):
     if winCheck[0]:
         return handleWin(whosTurn,winCheck[1]),
     if currentDepth == maxDepth:
-        return evalstate(whosTurn),
-    
-    
+        return evalstate(whosTurn),  
     adaptiveBeta = beta
     bestMove = None
-    bestValue = -INFINITY
-    
-        
+    bestValue = -INFINITY      
     moves = sort(legal_moves(),whosTurn)
     if len(moves)==0:   # No moves in the list
         if whosTurn==PIECE_RED:
             return -INFINITY,
-        return INFINITY,
-    
+        return INFINITY,    
     for move in moves:
         move.do()
         if currentDepth+1==maxDepth:
@@ -386,10 +369,8 @@ def sort(moves,isRed):
         finalList.append(keymoves[1])
     return finalList
 
-def resetBoard():
-    
+def resetBoard():  
     """ Redraw's the board, using the BitMap """
-    
     global board
     #   (black)
     #            45  46  47  48
@@ -406,39 +387,29 @@ def resetBoard():
     for i in range(0, 4):
             s[6+i] = s[12+i] = s[17+i] = PIECE_RED | MAN
             s[34+i] = s[39+i] = s[45+i] = PIECE_BLACK | MAN
-            s[23+i] = s[28+i] = FREE
-    
+            s[23+i] = s[28+i] = FREE  
 resetBoard()
 
-
-def resetGame():
-    
-    """ Allow's the game to be reset"""
-    
+def resetGame():  
+    """ Allow's the game to be reset"""   
     global gameOver,redTurn,computerPlayer
     gameOver = False
     redTurn = False
     resetBoard()    
-          
-    
-def startmulti():
-    
-    """ Multiplayer game mode start button. In the menu."""
-    
+  
+def startmulti():   
+    """ Multiplayer game mode start button. In the menu."""    
     global gameStarted
     if gameOver or computerPlayer:
         resetGame()
     gameStarted = True
     
-def exitbutton():
-    
-    """ Button used to exit the game. In the menu."""
-    
+def exitbutton(): 
+    """ Button used to exit the game. In the menu.""" 
     pygame.quit()
     sys.exit()
     
 def miniMaxButton():
-    
     global MINIMAX, gameStarted, computerPlayer
     MINIMAX = True
     if gameOver or not computerPlayer:
@@ -446,8 +417,7 @@ def miniMaxButton():
     computerPlayer = True
     gameStarted = True
 
-def alphaBetaButton():
-    
+def alphaBetaButton():  
     global ALPHABETA, gameStarted, computerPlayer
     ALPHABETA = True
     if gameOver or not computerPlayer:
@@ -456,7 +426,6 @@ def alphaBetaButton():
     gameStarted = True
 
 def negaScoutButton():
-    
     global gameStarted, computerPlayer, NEGASCOUT
     NEGASCOUT = True
     if gameOver or not computerPlayer:
@@ -465,23 +434,17 @@ def negaScoutButton():
     gameStarted = True
     
 def undoButton():
-    
     """ Undoes moves from both sides using undoMove """
-
     record.deleteLast().undo()
 
-def mainMenuButton():
-    
+def mainMenuButton(): 
     global gameStarted
     gameStarted = False
-    
-    
-def resetGameButton():
-    
+     
+def resetGameButton():  
     resetGame()
 
-def playRecordButton():
-    
+def playRecordButton():  
     global playingRecord,playState,playIndex,gameStarted
     record.load()
     gameStarted = True
@@ -490,14 +453,11 @@ def playRecordButton():
     playIndex = 0
     resetGame()
     
-def fastButton():
-    
-    global playSpeed
-    
+def fastButton(): 
+    global playSpeed 
     playSpeed -= (playSpeed/5)
 
-def slowButton():
-    
+def slowButton():  
     global playSpeed
     playSpeed += (playSpeed/5) + 1
      
@@ -507,13 +467,9 @@ def menuInRecordingButton():
     gameStarted = False
     
 class button:
-    
     """ Used for the menu """
-    
-    def __init__(self,x,y,w,h,text,f):
-        
+    def __init__(self,x,y,w,h,text,f): 
         """ Constructor for button class """
-        
         self.x = x       # X-coord for the button's box
         self.y = y       # Y=coord for the button's box
         self.w = w       # Width of the button's box
@@ -559,7 +515,6 @@ playBackButtons = [
 selectedIndex = None
    
 def processClick(mousePos):
-    
     """ 
     
         Overall click processing function, makes sure every move is legal.
@@ -581,7 +536,6 @@ def processClick(mousePos):
             aButton.f()
     if gameOver:
         return
-    
     grid_X = ((x-boardOffSetLeft_X) / CELL_X)
     grid_Y = (y / CELL_Y)
     try:
@@ -612,20 +566,7 @@ def processClick(mousePos):
                 if realMove:
                     realMove.do(True)
                 selectedIndex = None
-            
-#            canMove = selectedPiece.canMove(grid_X - selectedPiece.x, grid_Y - selectedPiece.y)
-#            if canMove[0]:
-#                move = canMove[1]
-#                move.do(True)
-#                if canMove[2]: # Checks to see if it can jump again - four directions to check.
-#                    for check_X in [2, -2]:
-#                        for check_Y in [2, -2]:
-#                            if grid_X + check_X > realBoard_X or grid_X + check_X < 1 or grid_Y + check_Y > realBoard_Y or grid_Y + check_Y < 1:
-#                                continue
-#                            canMove = selectedPiece.canMove(check_X, check_Y)
-#                            if canMove[0] and canMove[2]:
-#                                awaitingSecondJump = True
-#                                return
+                #add double jump check here OR fix possibleIndexs to include it
                 endPlayerTurn()        
             return
     if index:
@@ -753,8 +694,6 @@ def captureKing(player,mid,dest,last_pos):
 def perft(depth):
     if depth == 0:
         return 1
-
-    #state = curr_state or self.curr_state
     nodes = 0
     for move in legal_moves():
         move.do()
@@ -768,19 +707,14 @@ def perftest():
     #for i in range(0,1000000):
     #    movee.do()
     #    movee.undo()
-    #print "1million do and undo took:", mainClock.tick()
-    
+    #print "1million do and undo took:", mainClock.tick()   
     for depth in range (1,8):
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
-
-# Uncomment for performance test!
+#Uncomment for performance test!
 #perftest()
-    
-       
+      
 def doComputer():
-    
     """ Activates the computer Player """
-    
     global selectedPiece, computerState,computerMove, redTurn,numevals
     mainClock.tick()
     if ALPHABETA:
@@ -797,10 +731,8 @@ def doComputer():
         computerState = 1
     else: print "whaaaat"
                  
-def drawBoard():
-    
+def drawBoard(): 
     """ Draw's the checker board and the indicator for selection over a selected piece """
-    
     color = RED
     for y in range(0, 8):
         for x in range(0, 8):
@@ -821,9 +753,7 @@ def getPicforSquare(s):
         return blackKingStretched
     return blackpieceStretched
 def drawPieces():
-    
     """ Draw's the pieces onto the board """ 
-    
     for i in valid_squares:
         s = board[i]
         if s&COLORS:
@@ -833,27 +763,21 @@ def drawPieces():
             windowSurface.blit(getPicforSquare(s), (screen_X, screen_Y, screen_X + CELL_X, screen_Y + CELL_Y))
         
 def drawMenu():
-    
     """ Draw's a menu picture """
-    
     windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSetLeft_X, board_YRES))
     for button in buttonlist:
         button.draw()
         
 def drawInGameButtons():
-    
     for button in inGameButtons:
         button.draw()
     
 def drawPlayBackButtons():
-    
     for button in playBackButtons:
         button.draw()
     
 def eventCheck(event):
-    
-    """ Checks for input from user. If mouse button is clicked utilizes processClick function. """
-        
+    """ Checks for input from user. If mouse button is clicked utilizes processClick function. """   
     global gameOver,gameStarted
     if event.type == MOUSEBUTTONDOWN:
         processClick(event.pos)
@@ -862,18 +786,14 @@ def eventCheck(event):
             resetGame()
         if event.key == 27:
             gameStarted = False
-        
-    
 
 def checkPieces(color=None):
-    
     """ 
     
         Checks for various attributes of pieces after each move 
         Also Checks for winners and determines the winner or if there is a tie.
         
     """
-    
     global gameOver, playerWon, whosTurn
     redCanMove = False
     blackCanMove = False
@@ -918,9 +838,7 @@ def checkPieces(color=None):
             
                         
 def drawtext():
-    
     """ Draw's the text for who's turn it is, the FPS, and display's the winner of the game """
-    
     if gameOver:
         text = font1.render(playerWon + " has won the game", True, WHITE)
         textRect = text.get_rect()
@@ -946,9 +864,7 @@ def drawtext():
     windowSurface.blit(text, textRect)
 
 def updateComp():
-    
     """ Slows the computer down so that is not super fast - increases playability """
-    
     global selectedPiece, computerMove, computerTimer, redTurn, computerState
     if computerState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
@@ -966,14 +882,9 @@ def updateComp():
                 redTurn = False
                 checkPieces() 
 
-    
-
 def updateRecord():
-    
     """ Is responsible for playing back the recorded list """
-    
     global selectedPiece, playState,playIndex,playingRecord,computerTimer, fast
-    
     if playState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
         if playState == 1:
@@ -993,7 +904,6 @@ def updateRecord():
                 checkPieces()   
                     
 def updateGame():
-    
     """ 
     
         All functions that update the game are encapsulated here. 
@@ -1016,8 +926,7 @@ def updateGame():
         drawtext()
     else:
         drawMenu()
-        
-
+ 
 ## ============ Main Game Loop ============= ##
 while True:
     for event in pygame.event.get():
