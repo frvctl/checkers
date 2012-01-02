@@ -31,6 +31,7 @@ import pygame
 import sys
 import pickle
 import datetime
+import random
 from pygame.locals import *
 ## ========================== ##
 
@@ -86,8 +87,8 @@ CELL_Y = board_YRES / 8   # Height of a single checker square
 
 ## ====== Piece constants ======= ##
 OCCUPIED = 0
-PIECE_BLACK = 1
-PIECE_RED = 2
+PIECE_BLACK = 2
+PIECE_RED = 1
 MAN = 4
 KING = 8
 FREE = 16
@@ -111,6 +112,8 @@ center = [18,19,24,25,29,30,35,36]
 row = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,2,2,2,2,0,0,3,3,3,3,0,  # values used to calculate tempo -- one for each square on board (0, 48)
            4,4,4,4,0,0,5,5,5,5,0,6,6,6,6,0,0,7,7,7,7]
 safeedge = [9,15,39,45]
+rank = {0:0, 1:-1, 2:1, 3:0, 4:1, 5:1, 6:2, 7:1, 8:1, 9:0,
+            10:7, 11:4, 12:2, 13:2, 14:9, 15:8}
 
 """ Maps compressed grid indices xi + yi * 8 to internal
         board indices """
@@ -135,13 +138,28 @@ grd[34] = (2,1); grd[35] = (2,3); grd[36] = (2,5); grd[37] = (2,7)
 grd[39] = (1,0); grd[40] = (1,2); grd[41] = (1,4); grd[42] = (1,6)
 grd[45] = (0,1); grd[46] = (0,3); grd[47] = (0,5); grd[48] = (0,7)
 
+# constants for evaluation function
+TURN = 2      # color to move gets + turn
+BRV = 3       # multiplier for back rank
+KCV = 5       # multiplier for kings in center
+MCV = 1       # multiplier for men in center
+
+MEV = 1       # multiplier for men on edge
+KEV = 5       # multiplier for kings on edge
+CRAMP = 5     # multiplier for cramp
+
+OPENING = 2   # multipliers for tempo
+MIDGAME = -1
+ENDGAME = 2
+INTACTDOUBLECORNER = 3
+
 ## ============================================================================================ ##
 
 ## ===================================================== State Variables =============================================================== ##
 gameOver = False            # Determines if game is over
 gameStarted = False         # Determines if game is started
 playerWon = "Winner"        # Keeps track of the winner
-whosTurn = PIECE_BLACK      # Turn feature
+whosTurn = PIECE_RED        # Starting turn
 selectedPiece = None        # Shows if there is a piece selected
 computerPlayer = False      # Makes the computer play
 computerState = 0           # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
@@ -153,9 +171,6 @@ playState = 0               # Used for going through the recorded game
 playIndex = 0               # Same as above
 awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
 playSpeed = 1000            # The standard speed for play back, 1 second per move
-ALPHABETA = False           # Determines which AI algorithm is running
-MINIMAX = False
-NEGASCOUT = False
 numevals = 0
 players = []
 playerIndexs = []
@@ -219,50 +234,208 @@ class recording:
 
 record = recording()
 
-def handleWin(isRed,redWon):
+def handleWin(isRed, redWon):
     if redWon:
-        if isRed==PIECE_RED:
-            return INFINITY/2
+        if isRed == PIECE_RED:
+            return INFINITY / 2
         else:
-            return -INFINITY/2
+            return -INFINITY / 2
     else:
-        if isRed==PIECE_RED:
-            return -INFINITY/2
+        if isRed == PIECE_RED:
+            return -INFINITY / 2
         else:
-            return INFINITY/2
-           
-def evalstate(who):#True for red, false for black
-    global numevals
-    numevals += 1
-    value = 1
-    value = board[value+6-who+who*7/value]+8
-    value /= value*.08
-    while value >-29:
-        value += -2012
-    return value
+            return INFINITY / 2
+        
+        
+def _eval_cramp(sq):
+    evalNum = 0
+    if sq[28] == PIECE_RED | MAN and sq[34] == PIECE_BLACK | MAN:
+        evalNum += CRAMP
+    if sq[26] == PIECE_BLACK | MAN and sq[20] == PIECE_RED | MAN:
+        evalNum -= CRAMP
+    return evalNum
 
+def _eval_backrankguard(sq):
+    evalNum = 0
+    code = 0
+    if sq[6] & MAN: code += 1
+    if sq[7] & MAN: code += 2
+    if sq[8] & MAN: code += 4
+    if sq[9] & MAN: code += 8
+    backrank = rank[code]
+
+    code = 0
+    if sq[45] & MAN: code += 8
+    if sq[46] & MAN: code += 4
+    if sq[47] & MAN: code += 2
+    if sq[48] & MAN: code += 1
+    backrank = backrank - rank[code]
+    evalNum *= BRV * backrank
+    return evalNum
+
+def _eval_doublecorner(sq):
+    evalNum = 0
+    if sq[9] == PIECE_RED | MAN:
+        if sq[14] == PIECE_RED | MAN or sq[15] == PIECE_RED | MAN:
+            evalNum += INTACTDOUBLECORNER
+
+    if sq[45] == PIECE_BLACK | MAN:
+        if sq[39] == PIECE_BLACK | MAN or sq[40] == PIECE_BLACK | MAN:
+            evalNum -= INTACTDOUBLECORNER
+    return evalNum
+
+def _eval_center(sq):
+    evalNum = 0
+    nbmc = nbkc = nwmc = nwkc = 0
+    for c in center:
+        if sq[c] != FREE:
+            if sq[c] == PIECE_RED | MAN:
+                nbmc += 1
+            if sq[c] == PIECE_RED | KING:
+                nbkc += 1
+            if sq[c] == PIECE_BLACK | MAN:
+                nwmc += 1
+            if sq[c] == PIECE_BLACK | KING:
+                nwkc += 1
+    evalNum += (nbmc - nwmc) * MCV
+    evalNum += (nbkc - nwkc) * KCV
+    return evalNum
+
+def _eval_edge(sq):
+    evalNum = 0
+    nbme = nbke = nwme = nwke = 0
+    for e in edge:
+        if sq[e] != FREE:
+            if sq[e] == PIECE_RED | MAN:
+                nbme += 1
+            if sq[e] == PIECE_RED | KING:
+                nbke += 1
+            if sq[e] == PIECE_BLACK | MAN:
+                nwme += 1
+            if sq[e] == PIECE_BLACK | KING:
+                nwke += 1
+    evalNum -= (nbme - nwme) * MEV
+    evalNum -= (nbke - nwke) * KEV
+    return evalNum
+
+def _eval_tempo(sq, nm, nbk, nbm, nwk, nwm):
+    evalNum = tempo = 0
+    for i in range(6, 49):
+        if sq[i] == PIECE_RED | MAN:
+            tempo += row[i]
+        if sq[i] == PIECE_BLACK | MAN:
+            tempo -= 7 - row[i]
+
+    if nm >= 16:
+        evalNum += OPENING * tempo
+    if nm <= 15 and nm >= 12:
+        evalNum += MIDGAME * tempo
+    if nm < 9:
+        evalNum += ENDGAME * tempo
+
+    for s in safeedge:
+        if nbk + nbm > nwk + nwm and nwk < 3:
+            if sq[s] == PIECE_BLACK | KING:
+                evalNum -= 15
+        if nwk + nwm > nbk + nbm and nbk < 3:
+            if sq[s] == PIECE_RED | KING:
+                evalNum += 15
+    return evalNum
+
+def _eval_playeropposition(sq, nwm, nwk, nbk, nbm, nm, nk):
+    evalNum = 0
+    pieces_in_system = 0
+    tn = nm + nk
+    if nwm + nwk - nbk - nbm == 0:
+        if whosTurn == PIECE_RED:
+            for i in range(6, 10):
+                for j in range(4):
+                    if sq[i + 11 * j] != FREE:
+                        pieces_in_system += 1
+            if pieces_in_system % 2:
+                if tn <= 12: evalNum += 1
+                if tn <= 10: evalNum += 1
+                if tn <= 8: evalNum += 2
+                if tn <= 6: evalNum += 2
+            else:
+                if tn <= 12: evalNum -= 1
+                if tn <= 10: evalNum -= 1
+                if tn <= 8: evalNum -= 2
+                if tn <= 6: evalNum -= 2
+        else:
+            for i in range(12, 16):
+                for j in range(4):
+                    if sq[i + 11 * j] != FREE:
+                        pieces_in_system += 1
+            if pieces_in_system % 2 == 0:
+                if tn <= 12: evalNum += 1
+                if tn <= 10: evalNum += 1
+                if tn <= 8: evalNum += 2
+                if tn <= 6: evalNum += 2
+            else:
+                if tn <= 12: evalNum -= 1
+                if tn <= 10: evalNum -= 1
+                if tn <= 8: evalNum -= 2
+                if tn <= 6: evalNum -= 2
+    return evalNum
+       
+def utility(who = whosTurn):
+    """ Player evaluation function """
+    sq = board
+    code = sum(value[s] for s in sq)
+    nbm = code % 16
+    nbk = (code >> 4) % 16
+    nwm = (code >> 8) % 16
+    nwk = (code >> 12) % 16
+
+    v1 = 100 * nbm + 130 * nbk
+    v2 = 100 * nwm + 130 * nwk
+
+    evalNum = v1 - v2 # material values
+    # favor exchanges if in material plus
+    evalNum += (250 * (v1 - v2))/(v1 + v2)
+
+    nm = nbm + nwm
+    nk = nbk + nwk
+
+    # final evaluation below
+    if who == PIECE_RED:
+        evalNum += TURN
+        mult = -1
+    else:
+        evalNum -= TURN
+        mult = 1
+    
+    blah = mult * \
+            (evalNum +_eval_cramp(sq) + _eval_backrankguard(sq) +
+            _eval_doublecorner(sq) + _eval_center(sq) +
+            _eval_edge(sq) +
+            _eval_tempo(sq, nm, nbk, nbm, nwk, nwm) +
+            _eval_playeropposition(sq, nwm, nwk, nbk, nbm, nm, nk))
+    return blah
+
+def evalstate(who):
+    return utility()
+         
+                
 def miniMax(depth):   
-    """   
-        The main miniMax algorithm, must enter the depth that you want 
-        it to go to in the doComputer function, the depth entered 
-        must be an odd number. 
-    """
+
     global redTurn
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
-        return handleWin(whosTurn,winCheck[1])
+        return handleWin(whosTurn,winCheck[1]),None
     if depth == 0:
-        return evalstate(whosTurn),
+        return evalstate(whosTurn),None
     
-    bestValue = INFINITY
+    bestValue = INFINITY 
     bestMove = None
     if redTurn:
         bestValue = -INFINITY
     moves = legal_moves()
     if len(moves)==0:   # No moves in the list
         if redTurn:
-            return -INFINITY,
-        return INFINITY,
+            return -INFINITY,None
+        return INFINITY,None
     
     for move in moves:
         move.do()
@@ -278,35 +451,27 @@ def miniMax(depth):
                 bestMove = move
     return bestValue, bestMove
 
-def alphaBeta(depth, alpha, beta):    
-    """ 
-        The main miniMax algorithm, must enter the depth that you want 
-        it to go to in the doComputer function, the depth entered 
-        must be an odd number. 
-    """
-    
+
+def alphaBeta(maxDepth, currentDepth, alpha, beta):    
+
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
-        return handleWin(whosTurn,winCheck[1]),
-    if depth == 0:
-        return evalstate(whosTurn),
+        return handleWin(whosTurn,winCheck[1]),None
+    if currentDepth == maxDepth:
+        return evalstate(whosTurn),None
     
     bestValue = -INFINITY
     localalpha = alpha
     bestMove = None
-    moves = sort(legal_moves(),whosTurn)
+    moves = sort(legal_moves())
     if len(moves)==0:   # No moves in the list
         if whosTurn==PIECE_RED:
-            return -INFINITY,
-        return INFINITY,    
+            return -INFINITY,None
+        return INFINITY,None    
     for move in moves:
         move.do()
-        if depth > 1:
-            value = -alphaBeta(depth-1,-beta,-localalpha)[0]
-        else:
-            value = alphaBeta(depth-1,-beta,-localalpha)[0]
+        value = -alphaBeta(maxDepth, currentDepth+1,-beta,-localalpha)[0]
         move.undo()
-        
         if value > bestValue:
             bestValue = value
             bestMove = move
@@ -317,53 +482,77 @@ def alphaBeta(depth, alpha, beta):
             localalpha = bestValue
     return bestValue, bestMove
 
-def negaScout(maxDepth, currentDepth, alpha, beta):   
-    """  
-        The main miniMax algorithm, must enter the depth that you want 
-        it to go to in the doComputer function, the depth entered 
-        must be an odd number. 
-    """
+
+def negaMax(maxDepth, currentDepth, alpha, beta):    
     
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
-        return handleWin(whosTurn,winCheck[1]),
+        return handleWin(whosTurn,winCheck[1]),None
     if currentDepth == maxDepth:
-        return evalstate(whosTurn),  
+        return evalstate(whosTurn),None
+    
+    bestValue = -INFINITY
+    bestMove = None
+    moves = sort(legal_moves())
+    if len(moves)==0:   # No moves in the list
+        if whosTurn==PIECE_RED:
+            return -INFINITY,None
+        return INFINITY,None    
+    for move in moves:
+        move.do()
+        #if depth > 1:
+        value = -negaMax(maxDepth, currentDepth+1,-beta,-max(alpha,bestValue))[0]
+        #else:
+        #    value = alphaBeta(depth-1,-beta,-localalpha)[0]
+        move.undo()
+        
+        if value > bestValue:
+            bestValue = value
+            bestMove = move
+        
+        if bestValue >= beta:
+            break
+    return bestValue, bestMove
+
+def negaScout(maxDepth, currentDepth, alpha, beta):   
+    
+    winCheck = checkPieces(whosTurn)
+    if winCheck[0]:
+        return handleWin(whosTurn,winCheck[1]),None
+    if currentDepth == maxDepth:
+        return evalstate(whosTurn),None
     adaptiveBeta = beta
     bestMove = None
     bestValue = -INFINITY      
-    moves = sort(legal_moves(),whosTurn)
+    moves = sort(legal_moves())
     if len(moves)==0:   # No moves in the list
         if whosTurn==PIECE_RED:
-            return -INFINITY,
-        return INFINITY,    
+            return -INFINITY,None
+        return INFINITY,None
     for move in moves:
         move.do()
-        if currentDepth+1==maxDepth:
-            currentScore = negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
-        else:
-            currentScore = -negaScout(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
+        currentScore = -negaMax(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
         move.undo()
         if currentScore > bestValue:
-            if adaptiveBeta == beta or currentDepth >= maxDepth-2:
+            if adaptiveBeta == beta or currentDepth >= (maxDepth-2):
                 bestValue = currentScore
                 bestMove = move
-         
+            else:
+                negativeBestScore , bestMove = negaScout(maxDepth,currentDepth+1,-beta,-currentScore)
+                bestValue = -negativeBestScore
         if bestValue >= beta:
             break
-        else:
-            adaptiveBeta = max(alpha, bestValue)+1
+        adaptiveBeta = max(alpha, bestValue)+1
     return bestValue, bestMove
 
-def sort(moves,isRed):
+def sort(moves):
     listToSort = []
     finalList = []
     for move in moves:
-        #p = getPiece(move.source_X,move.source_Y)
         move.do()
-        listToSort.append((evalstate(isRed),move))
+        listToSort.append((evalstate(whosTurn),move))
         move.undo()
-    isReddd = True if isRed==PIECE_RED else False
+    isReddd = True if whosTurn==PIECE_RED else False
     newlist = sorted(listToSort,key=lambda blah:blah[0],reverse=isReddd)
     for keymoves in newlist:
         finalList.append(keymoves[1])
@@ -405,7 +594,8 @@ def resetGame():
   
 def startmulti():   
     """ Multiplayer game mode start button. In the menu."""    
-    global gameStarted
+    global gameStarted,players
+    players = [HumanPlayer(PIECE_BLACK),HumanPlayer(PIECE_RED)]
     if gameOver or computerPlayer:
         resetGame()
     gameStarted = True
@@ -416,25 +606,32 @@ def exitbutton():
     sys.exit()
     
 def miniMaxButton():
-    global MINIMAX, gameStarted, computerPlayer
-    MINIMAX = True
+    global MINIMAX, gameStarted, computerPlayer,players
+    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED,False,True,False)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
 
 def alphaBetaButton():  
-    global ALPHABETA, gameStarted, computerPlayer
-    ALPHABETA = True
+    global ALPHABETA, gameStarted, computerPlayer,players
+    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED,True,False,False)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
 
 def negaScoutButton():
-    global gameStarted, computerPlayer, NEGASCOUT,players
-    players = [ComputerPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED)]
-    NEGASCOUT = True
+    global gameStarted, computerPlayer, players
+    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED,False,False,True)]
+    if gameOver or not computerPlayer:
+        resetGame()
+    computerPlayer = True
+    gameStarted = True
+    
+def computerBattleButton():
+    global gameStarted, computerPlayer, players
+    players = [ComputerPlayer(PIECE_BLACK,True,False,False),ComputerPlayer(PIECE_RED,False,False,True)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
@@ -487,9 +684,7 @@ class HumanPlayer(Player):
         Player.__init__(self, color)
     def startTurn(self):
         global playerIndexs
-        self.started = True
-        print "making index list, derp"
-        
+        self.started = True        
         moves = legal_moves()
         indexs = []
         for move in moves:
@@ -501,14 +696,16 @@ class HumanPlayer(Player):
             except:
                 pass
             indexs.append([firstindex,secondindex,move])
-        print indexs
         playerIndexs = indexs
 class ComputerPlayer(Player):
-    def __init__(self,color):
+    def __init__(self,color,alpha,mini,nega):
         Player.__init__(self, color)
+        self.alpha = alpha
+        self.mini = mini
+        self.nega = nega
     def startTurn(self):
         self.started = True
-        doComputer()
+        doComputer(self.alpha,self.mini,self.nega)
         
 class button:
     """ Used for the menu """
@@ -541,7 +738,8 @@ buttonlist = [
               button(286,303,173,103,"Play-Back",playRecordButton),
               button(286, 450, 173, 105, "VS MiniMax", miniMaxButton),
               button(527, 450, 173, 105, "VS AlphaBeta", alphaBetaButton),
-              button(286, 600, 173, 105, "VS NegaScout", negaScoutButton)   
+              button(286, 600, 173, 105, "VS NegaScout", negaScoutButton),
+              button(527, 750, 173, 105, "Computer Battle", computerBattleButton)   
               ]
 
 inGameButtons = [
@@ -596,6 +794,7 @@ def processClick(mousePos):
                     start = checkIdx[0]
                     if index == start:# and index in currentMoves:
                         selectedIndex = index # The selected piece is now equal to realPiece
+                        
                 
             for checkIdx in playerIndexs:
                 start,dest = checkIdx[:2]
@@ -664,14 +863,14 @@ def getJumps():
                             sq3 = [dest,FREE,player|KING]
                         else:
                             sq3 = [dest,FREE,player|MAN]
-                            jump = [move([sq1,sq2,sq3])]
-                            visited = set()
-                            visited.add((i,mid,dest))
-                            temp = board[i]
-                            board[i] = FREE
-                            extraJumps = getExtendedJumps(valid_indices, jump, captureMan, visited)
-                            board[i] = temp
-                            jumps.extend(extraJumps)
+                        jump = [move([sq1,sq2,sq3])]
+                        visited = set()
+                        visited.add((i,mid,dest))
+                        temp = board[i]
+                        board[i] = FREE
+                        extraJumps = getExtendedJumps(valid_indices, jump, captureMan, visited)
+                        board[i] = temp
+                        jumps.extend(extraJumps)
             if (board[i]&KING):
                 for j in KING_INDEX:
                     mid = i+j
@@ -685,7 +884,7 @@ def getJumps():
                         visited.add((i,mid,dest))
                         temp = board[i]
                         board[i] = FREE
-                        extraJumps = getExtendedJumps(valid_indices, jump, captureKing, visited)
+                        extraJumps = getExtendedJumps(KING_INDEX, jump, captureKing, visited)
                         board[i] = temp
                         jumps.extend(extraJumps)
     return jumps
@@ -750,16 +949,16 @@ def perftest():
 #Uncomment for performance test!
 #perftest()
       
-def doComputer():
+def doComputer(alpha = False,mini = False,nega = False):
     """ Activates the computer Player """
     global selectedIndex, computerState,computerMove,numevals
     mainClock.tick()
-    if ALPHABETA:
-        bestMove = alphaBeta(9,-INFINITY,INFINITY)[1]
-    elif MINIMAX:
-        bestMove = miniMax(5)[1] 
+    if alpha:
+        bestMove = alphaBeta(7, 1,-INFINITY,INFINITY)[1]
+    elif mini:
+        bestMove = miniMax(7)[1] 
     else:
-        bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
+        bestMove = negaScout(7, 1, -INFINITY, INFINITY)[1]
     print "Count:",numevals,"Time:",mainClock.tick()
     numevals = 0
     if bestMove:
@@ -884,7 +1083,7 @@ def drawtext():
     player = "Red"
     text_X = boardOffSetLeft_X/2
     text_Y = board_YRES - 40
-    if not redTurn:
+    if whosTurn == PIECE_BLACK:
         player = "Black"
         text_Y = 40
     text = font2.render("It is " + player + "'s turn", True, WHITE)
@@ -919,21 +1118,22 @@ def updateComp():
 
 def updateRecord():
     """ Is responsible for playing back the recorded list """
-    global selectedPiece, playState,playIndex,playingRecord,computerTimer
+    global selectedIndex, playState,playIndex,playingRecord,computerTimer
     if playState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
         if playState == 1:
-            selectedPiece = getPiece(record.moveList[playIndex].source_X,record.moveList[playIndex].source_Y)
+            selectedIndex = record.moveList[playIndex].affectedSquares[0][0]
             playState = 2   
         if playState == 2:
             if computerTimer >= playSpeed:
                 record.moveList[playIndex].do()
+                selectedIndex = record.moveList[playIndex].affectedSquares[-1][0]
                 playState = 3
                 computerTimer = 0
                 playIndex += 1
         if playState == 3:
             if computerTimer >= (playSpeed/2):
-                selectedPiece = None
+                selectedIndex = None
                 computerTimer = 0
                 playState = 1
                 checkPieces()   
