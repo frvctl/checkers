@@ -44,6 +44,11 @@ PIECE_BLACK = 2   # Black piece
 MAN = 4         # Pieces are MEN if not KING
 KING = 8        # Pieces are KING if not MEN
 FREE = 16       # Space with nothing on it
+
+AI_MINI = 1
+AI_ALPHA = 2
+AI_NEGA = 4
+AI_RANDOM = 8
 ## ======================================== ## 
 
 ## ======================= Bitwise - used for switch's ================= ##
@@ -417,15 +422,12 @@ def evalstate(who):
 
 
 
-def randoMax():
-    global redTurn
-    winCheck = checkPieces(whosTurn)
-    if winCheck[0]:
-        return handleWin(whosTurn,winCheck[1]),None
-    randomIndex = random.randint(0, len(legal_moves())-1)
-    bestValue = random.randint
-    bestMove = legal_moves()[randomIndex]
-    return bestValue, bestMove
+def randomMove():
+    possibleMoves = legal_moves()
+    randomIndex = random.randint(0, len(possibleMoves)-1)
+    print randomIndex
+    bestMove = possibleMoves[randomIndex]
+    return bestMove
 
 
    
@@ -760,21 +762,21 @@ def perftest():
     #print "1million do and undo took:", mainClock.tick()   
     for depth in range (1,8):
         print "Depth:",depth,"count:",perft(depth),"Time:",mainClock.tick()
-# Uncomment for performance test!
+#\/Uncomment for performance test!\/
 #perftest()
       
-def doComputer(alpha=False,mini=False,nega=False, random=False):
+def doComputer(ai = AI_NEGA):
     """ Activates the computer Player """
     global selectedIndex, computerState,computerMove, numEvals
     mainClock.tick()
-    if alpha:
+    if ai & AI_ALPHA:
         bestMove = alphaBeta(9, 1,-INFINITY,INFINITY)[1]
-    elif mini:
+    elif ai & AI_MINI:
         bestMove = miniMax(5)[1] 
-    elif nega:
+    elif ai & AI_NEGA:
         bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
-    else:
-        bestMove = randoMax()[1]
+    elif ai & AI_RANDOM:
+        bestMove = randomMove()
     print "Count: ", numEvals, "Time: ",mainClock.tick()
     numEvals = 0
     if bestMove:
@@ -862,16 +864,16 @@ def exitbutton():
     sys.exit()
     
 def miniMaxButton():
-    global MINIMAX, gameStarted, computerPlayer,players
-    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED,False,True,False)]
+    global gameStarted, computerPlayer,players
+    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED, AI_MINI)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
 
 def alphaBetaButton():  
-    global ALPHABETA, gameStarted, computerPlayer,players
-    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED,True,False,False)]
+    global gameStarted, computerPlayer,players
+    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED, AI_ALPHA)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
@@ -879,7 +881,7 @@ def alphaBetaButton():
 
 def negaScoutButton():
     global gameStarted, computerPlayer, players
-    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED,False,False,True)]
+    players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED, AI_NEGA)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
@@ -887,7 +889,7 @@ def negaScoutButton():
     
 def computerBattleButton():
     global gameStarted, computerPlayer, players
-    players = [ComputerPlayer(PIECE_RED,True,False,False, False),ComputerPlayer(PIECE_BLACK,False,False,False,True)]
+    players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_RANDOM)]
     print players
     if gameOver or not computerPlayer:
         resetGame()
@@ -955,15 +957,12 @@ class HumanPlayer(Player):
             indexs.append([firstindex,secondindex,move])
         playerIndexs = indexs
 class ComputerPlayer(Player):
-    def __init__(self,color,alpha,mini,nega, rando):
+    def __init__(self,color,ai):
         Player.__init__(self, color)
-        self.alpha = alpha
-        self.mini = mini
-        self.nega = nega
-        self.rando = rando
+        self.ai = ai
     def startTurn(self):
         self.started = True
-        doComputer(self.alpha,self.mini,self.nega)
+        doComputer(self.ai)
         
 def drawMenu():
     """ Draw's a menu picture """
