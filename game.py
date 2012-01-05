@@ -39,8 +39,8 @@ ORANGE = (255, 128, 0)
 
 ## ============= Piece constants =========== ##
 OCCUPIED = 0    # An occupied square
-PIECE_RED = 1 # Red piece
-PIECE_BLACK = 2   # Black piece
+PIECE_RED = 1   # Red piece
+PIECE_BLACK = 2 # Black piece
 MAN = 4         # Pieces are MEN if not KING
 KING = 8        # Pieces are KING if not MEN
 FREE = 16       # Space with nothing on it
@@ -127,7 +127,7 @@ rank = {0:0, 1:-1, 2:1, 3:0, 4:1, 5:1, 6:2, 7:1, 8:1, 9:0,
             10:7, 11:4, 12:2, 13:2, 14:9, 15:8}
 ## ============================================================================ ##
 
-## ============ Evaluation Constants =============== ##
+## ======================= Evaluation Constants ===================== ##
 TURN = 2      # Molor to move gets + turn
 BRV = 3       # Multiplier for back rank
 KCV = 5       # Multiplier for kings in center
@@ -137,11 +137,11 @@ MEV = 1       # Multiplier for men on edge
 KEV = 5       # Multiplier for kings on edge
 CRAMP = 5     # Multiplier for cramp
 
-OPENING = 2   # Multipliers for tempo
-MIDGAME = -1
-ENDGAME = 2
-INTACTDOUBLECORNER = 3
-## ================================================== ##
+OPENING = 2   # Multipliers for tempo evaluation - over 16 pieces
+MIDGAME = -1  # Less than 15 pieces left total
+ENDGAME = 2   # Less than 9 pieces left total
+DOUBLECORNERSCALAR = 3 # Scaler for double corner evaluation
+## ================================================================= ##
 
 ## ===================== Positional Dictionaries ========================== ##
 # Maps compressed grid indices xi + yi * 8 to internal board indices. All
@@ -189,6 +189,9 @@ playerIndexs = []           #
 selectedIndex = None
 board = []
 numEvals = 0
+soloGame = False
+aiGame = False
+options = False
 ## ===================================================================================================================================== ##
 
 class move:   
@@ -277,11 +280,11 @@ def evaluateTheDoubleCorner(sq):
     evalNum = 0
     if sq[9] == PIECE_BLACK | MAN:
         if sq[14] == PIECE_BLACK | MAN or sq[15] == PIECE_BLACK | MAN:
-            evalNum += INTACTDOUBLECORNER
+            evalNum += DOUBLECORNERSCALAR
 
     if sq[45] == PIECE_RED | MAN:
         if sq[39] == PIECE_RED | MAN or sq[40] == PIECE_RED | MAN:
-            evalNum -= INTACTDOUBLECORNER
+            evalNum -= DOUBLECORNERSCALAR
     return evalNum
 
 def evaluateTheCenter(sq):
@@ -579,19 +582,37 @@ def processClick(mousePos):
         Utilizes getPiece and canMove functions 
         
     """
-    global selectedIndex, redTurn, moveList, awaitingSecondJump
+    global selectedIndex, redTurn, moveList, awaitingSecondJump, soloGame
     x, y = mousePos
-    if not gameStarted:
-        for button in buttonlist:
-            if button.inside(x,y):
-                button.f()
-        return
-    for theButton in inGameButtons:
-        if theButton.inside(x,y):
-            theButton.f()
-    for aButton in playBackButtons:
-        if playingRecord and aButton.inside(x,y):
-            aButton.f()
+    
+    if not soloGame and not aiGame and not options:
+        if not gameStarted:
+            for button in buttonlist:
+                if button.inside(x,y):
+                    button.f()
+            return
+        
+        for theButton in inGameButtons:
+            if theButton.inside(x,y):
+                theButton.f()
+                
+        for aButton in playBackButtons:
+            if playingRecord and aButton.inside(x,y):
+                aButton.f() 
+                       
+    elif soloGame:
+        for soloingButton in soloButtons:
+            if soloingButton.inside(x,y):
+                soloingButton.f()
+    elif options:
+        for optionButton in optionButtons:
+            if optionButton.inside(x,y):
+                optionButton.f()
+    else:
+        for aiTimeButton in AIButtons:
+            if aiTimeButton.inside(x,y):
+                aiTimeButton.f()
+                
     if gameOver:
         return
     grid_X = ((x-boardOffSetLeft_X) / CELL_X)
@@ -600,7 +621,6 @@ def processClick(mousePos):
         index = pos[grid_X + grid_Y*8]
     except:
         index = None
-    #realPiece = getPiece(grid_X, grid_Y) # The coordinates of the piece is equal to realPiece
     if selectedIndex:
             if selectedIndex == index:
                 selectedIndex = None
@@ -770,7 +790,7 @@ def doComputer(ai = AI_NEGA):
     global selectedIndex, computerState,computerMove, numEvals
     mainClock.tick()
     if ai & AI_ALPHA:
-        bestMove = alphaBeta(9, 1,-INFINITY,INFINITY)[1]
+        bestMove = alphaBeta(3, 1,-INFINITY,INFINITY)[1]
     elif ai & AI_MINI:
         bestMove = miniMax(5)[1] 
     elif ai & AI_NEGA:
@@ -848,7 +868,11 @@ def resetGame():
     global gameOver,redTurn,computerPlayer
     gameOver = False
     redTurn = False
-    resetBoard()    
+    resetBoard()  
+    
+def optionButton():
+    global options
+    options = True
   
 def startmulti():   
     """ Multiplayer game mode start button. In the menu."""    
@@ -858,36 +882,66 @@ def startmulti():
         resetGame()
     gameStarted = True
     
+def soloButton():
+    global soloGame
+    soloGame = True
+
+    
+def battleModeButton():
+    global aiGame
+    aiGame = True
+    
 def exitbutton(): 
     """ Button used to exit the game. In the menu.""" 
     pygame.quit()
     sys.exit()
     
 def miniMaxButton():
-    global gameStarted, computerPlayer,players
+    global gameStarted, computerPlayer,players, soloGame
     players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED, AI_MINI)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
-
+    soloGame = False
+    
 def alphaBetaButton():  
-    global gameStarted, computerPlayer,players
+    global gameStarted, computerPlayer,players, soloGame
     players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED, AI_ALPHA)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
+    soloGame = False
 
 def negaScoutButton():
-    global gameStarted, computerPlayer, players
+    global gameStarted, computerPlayer, players, soloGame
     players = [HumanPlayer(PIECE_BLACK),ComputerPlayer(PIECE_RED, AI_NEGA)]
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
+    soloGame = False
     
-def computerBattleButton():
+def negaA_vs_alphaB():
+    global gameStarted, computerPlayer, players
+    players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_ALPHA)]
+    print players
+    if gameOver or not computerPlayer:
+        resetGame()
+    computerPlayer = True
+    gameStarted = True
+
+def negaA_vs_miniB():
+    global gameStarted, computerPlayer, players
+    players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_MINI)]
+    print players
+    if gameOver or not computerPlayer:
+        resetGame()
+    computerPlayer = True
+    gameStarted = True
+    
+def negaA_vs_randoB():
     global gameStarted, computerPlayer, players
     players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_RANDOM)]
     print players
@@ -896,17 +950,23 @@ def computerBattleButton():
     computerPlayer = True
     gameStarted = True
     
+    
 def undoButton():
     """ Undoes moves from both sides using undoMove """
-
     undo = record.deleteLast()
     if undo: undo.undo()
-
 
 def mainMenuButton(): 
     global gameStarted
     gameStarted = False
-     
+    
+def menuReturn():
+    global gameStarted, aiGame, soloGame, options
+    gameStarted = False
+    aiGame = False
+    soloGame = False
+    options = False
+    
 def resetGameButton():  
     resetGame()
 
@@ -938,6 +998,7 @@ class Player:
         self.started = False
     def getColor(self):
         return self.col
+    
 class HumanPlayer(Player):
     def __init__(self,color):
         Player.__init__(self, color)
@@ -956,6 +1017,7 @@ class HumanPlayer(Player):
                 pass
             indexs.append([firstindex,secondindex,move])
         playerIndexs = indexs
+        
 class ComputerPlayer(Player):
     def __init__(self,color,ai):
         Player.__init__(self, color)
@@ -970,14 +1032,32 @@ def drawMenu():
     for button in buttonlist:
         button.draw()
         
-def drawInGameButtons():
-    for button in inGameButtons:
-        button.draw()
-    
-def drawPlayBackButtons():
-    for button in playBackButtons:
+def drawSoloMenu():    
+    windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSetLeft_X, board_YRES))
+    for button in soloButtons:
         button.draw()
         
+def drawAIMenu():
+    windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSetLeft_X, board_YRES))
+    for button in AIButtons:
+        button.draw()
+        
+def drawOptionsMenu():
+    windowSurface.blit(introImage,(0, 0, board_XRES + boardOffSetLeft_X, board_YRES))
+    for button in optionButtons:
+        button.draw()
+        
+def drawInGameButtons():
+    if soloGame == False:
+        for button in inGameButtons:
+            button.draw()
+    
+def drawPlayBackButtons():
+    if soloGame == False:
+        for button in playBackButtons:
+            button.draw()
+
+
 class button:
     """ Used for the menu """
     def __init__(self,x,y,w,h,text,f): 
@@ -1005,26 +1085,46 @@ class button:
     
 
 buttonlist = [
-              button(527,303,171,105,"Multi-Player",startmulti),
-              button(527,600,171,105,"Exit",exitbutton),
-              button(286,303,173,103,"Play-Back",playRecordButton),
-              button(286, 450, 173, 105, "VS MiniMax", miniMaxButton),
-              button(527, 450, 173, 105, "VS AlphaBeta", alphaBetaButton),
-              button(286, 600, 173, 105, "VS NegaScout", negaScoutButton),
-              button(527, 750, 173, 105, "Computer Battle", computerBattleButton)   
+              button(200, 300, 300, 100, "Local Multi-Player Game", startmulti),
+              button(500, 750, 200, 100, "Exit", exitbutton),
+              button(400, 600, 500, 100, "Playback: Watch the Previous Game", playRecordButton),
+              button(300, 450, 300, 100, "Solo Game Modes", soloButton),
+              button(600, 300, 400, 100, "Computer Battle Variations", battleModeButton),
+              button(700, 450, 200, 100, "Options", optionButton)   
               ]
 
 inGameButtons = [
-                 button(75, 200, 150,100,"Undo",undoButton),
-                 button(75, 500, 150,100, "Main Menu", mainMenuButton),
-                 button(75, 350, 150,100, "Reset Game", resetGameButton),
+                 button(75, 200, 150, 100, "Undo", undoButton),
+                 button(75, 500, 150, 100, "Main Menu", menuReturn),
+                 button(75, 350, 150, 100, "Reset Game", resetGameButton),
                  ]
 
 playBackButtons = [
-                   button(25, 300, 30, 30, ">>", fastButton),
-                   button(150, 300, 30, 30, "<<", slowButton),
+                   button(25, 300, 50, 30, ">>", fastButton),
+                   button(150, 300, 50, 30, "<<", slowButton),
                    button(150, 600, 100, 100, "Menu", menuInRecordingButton),
                    ]
+
+soloButtons = [
+                button(200, 300, 500, 100, "Play against the MiniMax Algorithm", miniMaxButton),
+                button(300, 450, 500, 100, "Play against the AlphaBeta Algorithm", alphaBetaButton),
+                button(400, 600, 500, 100, "Play against the NegaScout Algorithm", negaScoutButton),
+                button(500, 750, 200, 100, "Exit", exitbutton),
+                button(700, 750, 200, 100, "Return to Main Menu", menuReturn) 
+                ]
+
+AIButtons = [
+              button(200, 300, 650, 100, "NegaScout Algorithm versus the MiniMax Algorithm", negaA_vs_miniB),
+              button(300, 450, 650, 100, "NegaScout Algorithm versus the AlphaBeta Algorithm", negaA_vs_alphaB),
+              button(400, 600, 650, 100, "NegaScout Algorithm versus the Random Player", negaA_vs_randoB),
+              button(500, 750, 200, 100, "Exit", exitbutton),
+              button(750, 750, 300, 100, "Return to Main Menu", menuReturn) 
+              ]
+
+optionButtons = [
+                 button(500, 750, 200, 100, "Exit", exitbutton),
+                 button(750, 750, 300, 100, "Return to Main Menu", menuReturn)
+                 ]
 
 def drawBoard(): 
     """ Draw's the checker board and the indicator for selection over a selected piece """
@@ -1164,7 +1264,7 @@ def updateGame():
     mainClock.tick()
     if playingRecord:
         updateRecord()
-    if gameStarted and not playingRecord:
+    if gameStarted and not playingRecord and not soloGame and not options:
         for player in players:
             if not player.started and player.getColor() == whosTurn:
                 player.startTurn()
@@ -1173,6 +1273,12 @@ def updateGame():
         drawBoard()
         drawPieces()
         drawtext()
+    elif soloGame:
+        drawSoloMenu()
+    elif aiGame:
+        drawAIMenu()
+    elif options:
+        drawOptionsMenu()
     elif playingRecord:
         drawPlayBackButtons()
         drawBoard()
