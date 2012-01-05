@@ -1,6 +1,3 @@
-from buttons import button
-from game import *
-
 INFINITY = 99999999 # Constant used for the AI algorithms
 
 ## ==== Initializes Colors ==== ##
@@ -12,11 +9,6 @@ BLUE = (0, 0, 255)
 GOLD = (255, 215, 0)
 ORANGE = (255, 128, 0)
 ## ============================ ##
-
-## ============================================================ ##
-CELL_X = board_XRES / 8   # Length of a single checker square
-CELL_Y = board_YRES / 8   # Height of a single checker square
-## ============================================================ ##
 
 ## ============= Piece constants =========== ##
 OCCUPIED = 0    # An occupied square
@@ -47,6 +39,8 @@ KING_INDEX = [-6,-5,5,6]    # All possible king moves
 boardOffSetLeft_X = 300  # The extra space on the left - used for displaying information to the user
 board_XRES = 1000        # Length of the board   
 board_YRES = 1000        # Width of the board
+CELL_X = board_XRES / 8   # Length of a single checker square
+CELL_Y = board_YRES / 8   # Height of a single checker square
 ## ================================================================================================= ##
 
 ## Visual Representation of the board and numbers assigned to it ##
@@ -118,45 +112,3 @@ grd[34] = (2,1); grd[35] = (2,3); grd[36] = (2,5); grd[37] = (2,7)
 grd[39] = (1,0); grd[40] = (1,2); grd[41] = (1,4); grd[42] = (1,6)
 grd[45] = (0,1); grd[46] = (0,3); grd[47] = (0,5); grd[48] = (0,7)
 ## ======================================================================== ##
-
-## ===================================================== State Variables =============================================================== ##
-gameOver = False            # Determines if game is over
-gameStarted = False         # Determines if game is started
-playerWon = "Winner"        # Keeps track of the winner
-whosTurn = PIECE_RED        # Starting turn
-selectedPiece = None        # Shows if there is a piece selected
-computerPlayer = False      # Makes the computer play
-computerState = 0           # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
-computerMove = None         # Assigns the best move to the computer that the computer will then do
-computerTimer = 0           # Timer for the AI - used so that the computer is not super fast - makes it more playable 
-moveList = []               # Stores lists of moves that the AI uses
-playingRecord = False       # Determines if the recording is being played
-playState = 0               # Used for going through the recorded game
-playIndex = 0               # Same as above
-awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
-playSpeed = 1000            # The standard speed for play back, 1 second per move
-players = []                # Used to determine who or what plays who or what
-playerIndexs = []           # 
-## ===================================================================================================================================== ##
-
-buttonlist = [
-              button(527,303,171,105,"Multi-Player",startmulti),
-              button(527,600,171,105,"Exit",exitbutton),
-              button(286,303,173,103,"Play-Back",playRecordButton),
-              button(286, 450, 173, 105, "VS MiniMax", miniMaxButton),
-              button(527, 450, 173, 105, "VS AlphaBeta", alphaBetaButton),
-              button(286, 600, 173, 105, "VS NegaScout", negaScoutButton),
-              button(527, 750, 173, 105, "Computer Battle", computerBattleButton)   
-              ]
-
-inGameButtons = [
-                 button(75, 200, 150,100,"Undo",undoButton),
-                 button(75, 500, 150,100, "Main Menu", mainMenuButton),
-                 button(75, 350, 150,100, "Reset Game", resetGameButton),
-                 ]
-
-playBackButtons = [
-                   button(25, 300, 30, 30, ">>", fastButton),
-                   button(150, 300, 30, 30, "<<", slowButton),
-                   button(150, 600, 100, 100, "Menu", menuInRecordingButton),
-                   ]
