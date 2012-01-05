@@ -20,11 +20,16 @@ CELL_Y = board_YRES / 8   # Height of a single checker square
 
 ## ============= Piece constants =========== ##
 OCCUPIED = 0    # An occupied square
-PIECE_BLACK = 2 # Technically the red piece
-PIECE_RED = 1   # Technically the black piece
+PIECE_RED = 1 # Red piece
+PIECE_BLACK = 2   # Black piece
 MAN = 4         # Pieces are MEN if not KING
 KING = 8        # Pieces are KING if not MEN
 FREE = 16       # Space with nothing on it
+
+AI_MINI = 1
+AI_ALPHA = 2
+AI_NEGA = 4
+AI_RANDOM = 8
 ## ======================================== ## 
 
 ## ======================= Bitwise - used for switch's ================= ##
