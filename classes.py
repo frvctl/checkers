@@ -1,5 +1,8 @@
-import pygame, pickle
+import pygame
+import pickle
+import datetime
 from pygame.locals import *
+
 class button:
     """ Used for the menu """
     def __init__(self,x,y,w,h,text,f): 
@@ -41,6 +44,15 @@ class ComputerPlayer(Player):
     def __init__(self,color,ai):
         Player.__init__(self, color)
         self.ai = ai
+    def __repr__(self):
+        if self.ai&1:
+            return "Minimax"
+        if self.ai&2:
+            return "Alphabeta"
+        if self.ai&4:
+            return "Negascout"
+        if self.ai&8:
+            return "Random"
     def startTurn(self):
         self.started = True
         return True,self.ai
@@ -50,15 +62,17 @@ class recording:
         self.moveList = []
     def add (self,move):
         self.moveList.append(move)
+    def clear (self):
+        self.moveList = []
     def deleteLast (self):
         if len(self.moveList) > 0:
             return self.moveList.pop()
         print "idiot, no moves"
-    def save (self):
-        with  open(str(datetime.datetime.now()),'w') as f:
+    def save (self,name):
+        with  open(name,'w') as f:
             pickle.dump(self.moveList,f)
-    def load (self):
-        with open("record.txt", 'r') as f:
+    def load (self,name="record.txt"):
+        with open(name, 'r') as f:
             self.moveList = pickle.load(f)
         
 

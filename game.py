@@ -19,39 +19,44 @@
 import pickle
 import datetime
 import random
-import pygame, sys
+import sys
 from classes import *
 from constants import *
 from pygame.locals import *
 ## ========================== ##
 
+
+STATS = True
+
+
+
 pygame.init() # Initializes pygame
 mainClock = pygame.time.Clock() # Game clock: used for slowing down the AI opponent and tracks speed of functions
+if not STATS:
+    ## ================================== Window Surface ======================================= ##
+    windowSurface = pygame.display.set_mode((board_XRES + boardOffSetLeft_X, board_YRES), 0, 32)
+    pygame.display.set_caption('Checkers!')
+    ## ========================================================================================= ##
 
-## ================================== Window Surface ======================================= ##
-windowSurface = pygame.display.set_mode((board_XRES + boardOffSetLeft_X, board_YRES), 0, 32)
-pygame.display.set_caption('Checkers!')
-## ========================================================================================= ##
+    ## ============================= Fonts ================================= ##
+    font1 = pygame.font.SysFont(None, 60, bold = True, italic = True)
+    font2 = pygame.font.SysFont(None, 36)
+    ## ===================================================================== ##
 
-## ============================= Fonts ================================= ##
-font1 = pygame.font.SysFont(None, 60, bold = True, italic = True)
-font2 = pygame.font.SysFont(None, 36)
-## ===================================================================== ##
+    ## ========================== Loads Images ============================== ##
+    introImage = pygame.image.load('idontcare.png')           # Menu Picture
+    redPieceImage = pygame.image.load('redpiece.png')         # Red Piece
+    blackPieceImage = pygame.image.load('blackpiece.png')     # Black Piece
+    redKingImage = pygame.image.load('redpieceking.png')      # Red King
+    blackKingImage = pygame.image.load('blackpieceking.png')  # Black King
+    ## ====================================================================== ##
 
-## ========================== Loads Images ============================== ##
-introImage = pygame.image.load('idontcare.png')           # Menu Picture
-redPieceImage = pygame.image.load('redpiece.png')         # Red Piece
-blackPieceImage = pygame.image.load('blackpiece.png')     # Black Piece
-redKingImage = pygame.image.load('redpieceking.png')      # Red King
-blackKingImage = pygame.image.load('blackpieceking.png')  # Black King
-## ====================================================================== ##
-
-## ================ Transforms Images to the cell size ============================================ ##
-blackpieceStretched = pygame.transform.scale(blackPieceImage, (CELL_X, CELL_Y)) # Black piece
-redpieceStretched = pygame.transform.scale(redPieceImage, (CELL_X, CELL_Y))     # Red piece
-redKingStretched = pygame.transform.scale(redKingImage, (CELL_X, CELL_Y))       # Red king piece
-blackKingStretched = pygame.transform.scale(blackKingImage, (CELL_X, CELL_Y))   # Black king piece
-## ================================================================================================ ##
+    ## ================ Transforms Images to the cell size ============================================ ##
+    blackpieceStretched = pygame.transform.scale(blackPieceImage, (CELL_X, CELL_Y)) # Black piece
+    redpieceStretched = pygame.transform.scale(redPieceImage, (CELL_X, CELL_Y))     # Red piece
+    redKingStretched = pygame.transform.scale(redKingImage, (CELL_X, CELL_Y))       # Red king piece
+    blackKingStretched = pygame.transform.scale(blackKingImage, (CELL_X, CELL_Y))   # Black king piece
+    ## ================================================================================================ ##
 
 ## Visual Representation of the board and numbers assigned to it ##
         ## ==== Black Pieces ==== ##
@@ -70,7 +75,7 @@ blackKingStretched = pygame.transform.scale(blackKingImage, (CELL_X, CELL_Y))   
 gameOver = False            # Determines if game is over
 gameStarted = False         # Determines if game is started
 playerWon = "Winner"        # Keeps track of the winner
-whosTurn = PIECE_BLACK        # Starting turn
+whosTurn = PIECE_BLACK      # Starting turn
 selectedPiece = None        # Shows if there is a piece selected
 computerPlayer = False      # Makes the computer play
 computerState = 0           # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
@@ -84,21 +89,19 @@ playIndex = 0               # Same as above
 awaitingSecondJump = False  # For double jump checking - making sure pieces are used correctly
 playSpeed = 1000            # The standard speed for play back, 1 second per move
 players = []                # Used to determine who or what plays who or what
-playerIndexs = []           # 
-selectedIndex = None
-board = []
-numEvals = 0
-soloGame = False
-aiGame = False
-options = False
+playerIndexs = []           # Index's of piece positions
+selectedIndex = None        # The selected index of the board   
+board = []                  # List representing the checkers board   
+numEvals = 0                # Keeps track of the number of evaluations for a given move
+soloGame = False            # True when soloButton is pressed, activates the solo menu
+aiGame = False              # True when the AIButton is pressed, activates the AI menu
+options = False             # True when the optionsButton is pressed, activates the options menu
 ## ===================================================================================================================================== ##
 
 class move:   
     """ 
-    
         Basic move structure as applied to the checkers board. 
         Takes moves and then evaluates them by calling doMove and undoMove.  
-        
     """    
     def __init__(self, squares):        
         """ Constructor for the move class""" 
@@ -304,18 +307,16 @@ def evaluationUtility():
 def evalstate(who):
     return evaluationUtility()
 
-
-
 def randomMove():
     possibleMoves = legal_moves()
-    randomIndex = random.randint(0, len(possibleMoves)-1)
-    print randomIndex
-    bestMove = possibleMoves[randomIndex]
+    bestMove = None
+    try:
+        randomIndex = random.randint(0, len(possibleMoves)-1)
+        bestMove = possibleMoves[randomIndex]
+    except:
+        pass
     return bestMove
-
-
-   
-                
+               
 def miniMax(depth):   
 
     global redTurn
@@ -458,10 +459,8 @@ def sort(moves):
 
 def processClick(mousePos):
     """ 
-    
         Overall click processing function, makes sure every move is legal.
         Utilizes getPiece and canMove functions 
-        
     """
     global selectedIndex, redTurn, moveList, awaitingSecondJump, soloGame
     x, y = mousePos
@@ -509,8 +508,8 @@ def processClick(mousePos):
             elif index:
                 for checkIdx in playerIndexs:
                     start = checkIdx[0]
-                    if index == start:# and index in currentMoves:
-                        selectedIndex = index # The selected piece is now equal to realPiece
+                    if index == start:
+                        selectedIndex = index 
                         
                 
             for checkIdx in playerIndexs:
@@ -523,8 +522,8 @@ def processClick(mousePos):
     elif index:
         for checkIdx in playerIndexs:
             start = checkIdx[0]
-            if index == start:# and index in currentMoves:
-                selectedIndex = index # The selected piece is now equal to realPiece
+            if index == start:
+                selectedIndex = index 
             
 def endPlayerTurn():
     for player in players:
@@ -659,6 +658,33 @@ def captureKing(player,mid,dest,last_pos):
     sq3 = [dest,board[dest],player|KING] 
     return sq2,sq3
 
+def resetBoard():  
+    
+    """ 
+        Redraw's the board, numbers based on the board below 
+    
+        ## ==== Black Pieces ==== ##
+        ##      45  46  47  48    ##
+        ##    39  40  41  42      ##
+        ##      34  35  36  37    ##
+        ##    28  29  30  31      ##
+        ##      23  24  25  26    ##
+        ##    17  18  19  20      ##  
+        ##      12  13  14  15    ##
+        ##    6   7   8   9       ##
+        ## ===== Red Pieces ===== ##
+        
+    """
+    global board
+
+    board = [OCCUPIED for i in range(56)]
+    s = board
+    for i in range(0, 4):
+            s[6+i] = s[12+i] = s[17+i] = PIECE_RED | MAN
+            s[34+i] = s[39+i] = s[45+i] = PIECE_BLACK | MAN
+            s[23+i] = s[28+i] = FREE  
+resetBoard()
+
 def perft(depth):
     if depth == 0:
         return 1
@@ -687,13 +713,18 @@ def doComputer(ai = AI_NEGA):
     mainClock.tick()
     if ai & AI_ALPHA:
         bestMove = alphaBeta(3, 1,-INFINITY,INFINITY)[1]
+        plrstring = "Alphabeta"
     elif ai & AI_MINI:
         bestMove = miniMax(5)[1] 
+        plrstring = "Minimax"
     elif ai & AI_NEGA:
-        bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
+        bestMove = negaScout(7, 1, -INFINITY, INFINITY)[1]
+        plrstring = "Negamax"
     elif ai & AI_RANDOM:
         bestMove = randomMove()
-    print "Count: ", numEvals, "Time: ",mainClock.tick()
+        plrstring = "Random"
+
+    print plrstring ,",", numEvals, ",",mainClock.tick()
     numEvals = 0
     if bestMove:
         computerMove = bestMove
@@ -703,9 +734,7 @@ def doComputer(ai = AI_NEGA):
     else: print "whaaaat"
                  
 def eventCheck(event):
-    
     """ Checks for input from user. If mouse button is clicked utilizes processClick function. """  
-     
     global gameOver,gameStarted
     if event.type == MOUSEBUTTONDOWN:
         processClick(event.pos)
@@ -757,19 +786,28 @@ def checkPieces(color=None):
                 currentPlayerWon = True
         return winnerFound, currentPlayerWon
     if gameOver:
-        record.save()  # Saves game into a file
+        print playerWon , "WON"
+        record.save("Game #" + str(statCounter))  # Saves game into a file
         
 def resetGame():  
     """ Allow's the game to be reset"""   
-    global gameOver,redTurn,computerPlayer
+    global gameOver,whosTurn
     gameOver = False
-    redTurn = False
+    whosTurn = PIECE_BLACK
     resetBoard()  
     
 def optionButton():
     global options
     options = True
-  
+
+def blackStart():
+    global whosTurn
+    whosTurn = PIECE_BLACK
+
+def redStart():
+    global whosTurn
+    whosTurn = PIECE_RED
+      
 def startmulti():   
     """ Multiplayer game mode start button. In the menu."""    
     global gameStarted,players
@@ -781,7 +819,6 @@ def startmulti():
 def soloButton():
     global soloGame
     soloGame = True
-
     
 def battleModeButton():
     global aiGame
@@ -822,7 +859,6 @@ def negaScoutButton():
 def negaA_vs_alphaB():
     global gameStarted, computerPlayer, players
     players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_ALPHA)]
-    print players
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
@@ -831,7 +867,6 @@ def negaA_vs_alphaB():
 def negaA_vs_miniB():
     global gameStarted, computerPlayer, players
     players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_MINI)]
-    print players
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
@@ -840,12 +875,10 @@ def negaA_vs_miniB():
 def negaA_vs_randoB():
     global gameStarted, computerPlayer, players
     players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_RANDOM)]
-    print players
     if gameOver or not computerPlayer:
         resetGame()
     computerPlayer = True
     gameStarted = True
-    
     
 def undoButton():
     """ Undoes moves from both sides using undoMove """
@@ -946,7 +979,7 @@ soloButtons = [
                 button(300, 450, 500, 100, "Play against the AlphaBeta Algorithm", alphaBetaButton),
                 button(400, 600, 500, 100, "Play against the NegaScout Algorithm", negaScoutButton),
                 button(500, 750, 200, 100, "Exit", exitbutton),
-                button(700, 750, 200, 100, "Return to Main Menu", menuReturn) 
+                button(750, 750, 300, 100, "Return to Main Menu", menuReturn) 
                 ]
 
 AIButtons = [
@@ -958,6 +991,8 @@ AIButtons = [
               ]
 
 optionButtons = [
+                 button(200, 300, 200, 100, "Black goes first", blackStart),
+                 button(500, 300, 200, 100, "Red goes first", redStart),
                  button(500, 750, 200, 100, "Exit", exitbutton),
                  button(750, 750, 300, 100, "Return to Main Menu", menuReturn)
                  ]
@@ -993,33 +1028,6 @@ def drawPieces():
             screen_X = ((x) * CELL_X) + boardOffSetLeft_X
             screen_Y = (y) * CELL_Y
             windowSurface.blit(getPicforSquare(s), (screen_X, screen_Y, screen_X + CELL_X, screen_Y + CELL_Y))
-            
-def resetBoard():  
-    
-    """ 
-        Redraw's the board, numbers based on the board below 
-    
-        ## ==== Black Pieces ==== ##
-        ##      45  46  47  48    ##
-        ##    39  40  41  42      ##
-        ##      34  35  36  37    ##
-        ##    28  29  30  31      ##
-        ##      23  24  25  26    ##
-        ##    17  18  19  20      ##  
-        ##      12  13  14  15    ##
-        ##    6   7   8   9       ##
-        ## ===== Red Pieces ===== ##
-        
-    """
-    global board
-
-    board = [OCCUPIED for i in range(56)]
-    s = board
-    for i in range(0, 4):
-            s[6+i] = s[12+i] = s[17+i] = PIECE_RED | MAN
-            s[34+i] = s[39+i] = s[45+i] = PIECE_BLACK | MAN
-            s[23+i] = s[28+i] = FREE  
-resetBoard()
                         
 def drawtext():
     """ Draw's the text for who's turn it is, the FPS, and display's the winner of the game """
@@ -1087,16 +1095,50 @@ def updateRecord():
                 computerTimer = 0
                 playState = 1
                 checkPieces()   
-                    
+                
+def statLoop():
+    global players,statCounter
+    try:
+        statCounter = pickle.load(open("Stats.txt","r"))
+    except:
+        statCounter = 1
+    while True:
+        resetGame()
+        players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_RANDOM)]
+        print "GAME #" , statCounter
+        print players
+        print ("Red first" if whosTurn&PIECE_RED else "Black first"), ",COUNT", ",TIME(MS)"
+        while not gameOver:
+            for player in players:
+                if not player.started and player.getColor() == whosTurn:
+                    isComputer = player.startTurn()
+                    if isComputer[0]:
+                        #print player
+                        doComputer(isComputer[1])
+                        if computerMove:
+                            computerMove.do(True)
+                            checkPieces()
+            for player in players:
+                player.started = False
+        record.clear()
+        pickle.dump(statCounter, open("Stats.txt","w"))
+        statCounter += 1
+                
+class statPrint:
+    def write(self,txt):
+        with open("log.csv","a") as f:
+            f.write(txt)
+
+if STATS:
+    sys.stdout = statPrint()
+    statLoop()
+    sys.exit()
+     
 def updateGame():
-    
     """ 
-    
         All functions that update the game are encapsulated here. 
         Starts updated when game starts or show's the menu on startup
-        
     """
-    
     mainClock.tick()
     if playingRecord:
         updateRecord()
@@ -1105,6 +1147,7 @@ def updateGame():
             if not player.started and player.getColor() == whosTurn:
                 isComputer = player.startTurn()
                 if isComputer[0]:
+                    
                     doComputer(isComputer[1])
                 else:
                     setPlayerMoves()

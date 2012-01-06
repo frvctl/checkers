@@ -82,10 +82,10 @@ MEV = 1       # Multiplier for men on edge
 KEV = 5       # Multiplier for kings on edge
 CRAMP = 5     # Multiplier for cramp
 
-OPENING = 2   # Multipliers for tempo
-MIDGAME = -1
-ENDGAME = 2
-INTACTDOUBLECORNER = 3
+OPENING = 2            # Multipliers for tempo evaluation - over 16 pieces
+MIDGAME = -1           # Less than 15 pieces left total
+ENDGAME = 2            # Less than 9 pieces left total
+DOUBLECORNERSCALAR = 3 # Scaler for double corner evaluation
 ## ================================================== ##
 
 ## ===================== Positional Dictionaries ========================== ##
