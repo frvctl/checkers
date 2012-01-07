@@ -28,8 +28,6 @@ from pygame.locals import *
 
 STATS = True
 
-
-
 pygame.init() # Initializes pygame
 mainClock = pygame.time.Clock() # Game clock: used for slowing down the AI opponent and tracks speed of functions
 if not STATS:
@@ -737,7 +735,6 @@ def doComputer(ai = AI_NEGA):
         selectedIndex = bestMove.affectedSquares[0][0]
         computerState = 1
         moveCount += 1
-        print moveCount
     
     else: print "whaaaat"
                  
