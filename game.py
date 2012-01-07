@@ -96,6 +96,8 @@ numEvals = 0                # Keeps track of the number of evaluations for a giv
 soloGame = False            # True when soloButton is pressed, activates the solo menu
 aiGame = False              # True when the AIButton is pressed, activates the AI menu
 options = False             # True when the optionsButton is pressed, activates the options menu
+moveCount = 0
+numberOfGames = 5
 ## ===================================================================================================================================== ##
 
 class move:   
@@ -709,7 +711,7 @@ def perftest():
       
 def doComputer(ai = AI_NEGA):
     """ Activates the computer Player """
-    global selectedIndex, computerState,computerMove, numEvals
+    global selectedIndex, computerState,computerMove, numEvals, moveCount, gameOver
     mainClock.tick()
     if ai & AI_ALPHA:
         bestMove = alphaBeta(3, 1,-INFINITY,INFINITY)[1]
@@ -718,19 +720,25 @@ def doComputer(ai = AI_NEGA):
         bestMove = miniMax(5)[1] 
         plrstring = "Minimax"
     elif ai & AI_NEGA:
-        bestMove = negaScout(7, 1, -INFINITY, INFINITY)[1]
-        plrstring = "Negamax"
+        bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
+        plrstring = "NegaScout"
     elif ai & AI_RANDOM:
         bestMove = randomMove()
         plrstring = "Random"
 
     print plrstring ,",", numEvals, ",",mainClock.tick()
     numEvals = 0
+    if moveCount > 150:
+        resetGame()
+        moveCount = 0
+        playerWon = "FAIL!"
     if bestMove:
         computerMove = bestMove
         selectedIndex = bestMove.affectedSquares[0][0]
         computerState = 1
-        
+        moveCount += 1
+        print moveCount
+    
     else: print "whaaaat"
                  
 def eventCheck(event):
@@ -1057,7 +1065,7 @@ def drawtext():
 
 def updateComp():
     """ Slows the computer down so that is not super fast - increases playability """
-    global computerMove, computerTimer, computerState, selectedIndex
+    global computerMove, computerTimer, computerState, selectedIndex, moveCount
     if computerState > 0 and not gameOver:
         computerTimer += mainClock.get_time()
         if computerState == 1:
@@ -1097,12 +1105,13 @@ def updateRecord():
                 checkPieces()   
                 
 def statLoop():
-    global players,statCounter
+    global players,statCounter, gameOver,numberOfGames
+    localCounter = 0
     try:
         statCounter = pickle.load(open("Stats.txt","r"))
     except:
         statCounter = 1
-    while True:
+    while localCounter < numberOfGames:
         resetGame()
         players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_RANDOM)]
         print "GAME #" , statCounter
@@ -1113,7 +1122,6 @@ def statLoop():
                 if not player.started and player.getColor() == whosTurn:
                     isComputer = player.startTurn()
                     if isComputer[0]:
-                        #print player
                         doComputer(isComputer[1])
                         if computerMove:
                             computerMove.do(True)
@@ -1123,6 +1131,7 @@ def statLoop():
         record.clear()
         pickle.dump(statCounter, open("Stats.txt","w"))
         statCounter += 1
+        localCounter += 1
                 
 class statPrint:
     def write(self,txt):
