@@ -13,18 +13,15 @@
 ##               12-24-11                                           ## 
 ## -> Version 5: Added recording and play back  --> 12-26-11        ##
 ## -> Version 6: Complete revision of board system --> 12-31-11     ##
+## -> Version 7: Added time limited cut-off --> 1-9-12
 ## ==========================TODO=================================  ##
 
 ## ======== Imports ========= ##
-import pickle
-import datetime
 import random
 import sys
 from classes import *
 from constants import *
-from pygame.locals import *
 ## ========================== ##
-
 
 STATS = True
 
@@ -73,7 +70,7 @@ if not STATS:
 gameOver = False            # Determines if game is over
 gameStarted = False         # Determines if game is started
 playerWon = "Winner"        # Keeps track of the winner
-whosTurn = PIECE_BLACK      # Starting turn
+whosTurn = PIECE_RED        # Starting turn
 selectedPiece = None        # Shows if there is a piece selected
 computerPlayer = False      # Makes the computer play
 computerState = 0           # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
@@ -94,8 +91,11 @@ numEvals = 0                # Keeps track of the number of evaluations for a giv
 soloGame = False            # True when soloButton is pressed, activates the solo menu
 aiGame = False              # True when the AIButton is pressed, activates the AI menu
 options = False             # True when the optionsButton is pressed, activates the options menu
-moveCount = 0
-numberOfGames = 5
+moveCount = 0               # Keeps track of the number of moves
+numberOfGames = 20          # The number of games stat loop goes through
+statCounter = 0
+currentTime = 0
+maxTime = 4000
 ## ===================================================================================================================================== ##
 
 class move:   
@@ -319,7 +319,6 @@ def randomMove():
                
 def miniMax(depth):   
 
-    global redTurn
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
         return handleWin(whosTurn,winCheck[1]),None
@@ -328,11 +327,11 @@ def miniMax(depth):
     
     bestValue = INFINITY 
     bestMove = None
-    if redTurn:
+    if whosTurn == PIECE_RED:
         bestValue = -INFINITY
     moves = legal_moves()
     if len(moves)==0:   # No moves in the list
-        if redTurn:
+        if whosTurn == PIECE_RED:
             return -INFINITY,None
         return INFINITY,None
     
@@ -340,7 +339,7 @@ def miniMax(depth):
         move.do()
         value = miniMax(depth-1)[0]
         move.undo()
-        if redTurn:
+        if whosTurn == PIECE_RED:
             if value > bestValue:
                 bestValue = value
                 bestMove = move
@@ -352,7 +351,8 @@ def miniMax(depth):
 
 
 def alphaBeta(maxDepth, currentDepth, alpha, beta):    
-
+    
+    global currentTime
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
         return handleWin(whosTurn,winCheck[1]),None
@@ -364,10 +364,11 @@ def alphaBeta(maxDepth, currentDepth, alpha, beta):
     bestMove = None
     moves = sort(legal_moves())
     if len(moves)==0:   # No moves in the list
-        if whosTurn==PIECE_RED:
-            return -INFINITY,None
-        return INFINITY,None    
+        return -INFINITY,None
     for move in moves:
+        currentTime += mainClock.tick()
+        if currentTime >= maxTime:
+            return -INFINITY,None
         move.do()
         value = -alphaBeta(maxDepth, currentDepth+1,-beta,-localalpha)[0]
         move.undo()
@@ -383,7 +384,8 @@ def alphaBeta(maxDepth, currentDepth, alpha, beta):
 
 
 def negaMax(maxDepth, currentDepth, alpha, beta):    
-    
+
+    global currentTime
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
         return handleWin(whosTurn,winCheck[1]),None
@@ -394,10 +396,11 @@ def negaMax(maxDepth, currentDepth, alpha, beta):
     bestMove = None
     moves = sort(legal_moves())
     if len(moves)==0:   # No moves in the list
-        if whosTurn==PIECE_RED:
-            return -INFINITY,None
-        return INFINITY,None    
+        return -INFINITY,None   
     for move in moves:
+        currentTime += mainClock.tick()
+        if currentTime >= maxTime:
+            return -INFINITY,None
         move.do()
         #if depth > 1:
         value = -negaMax(maxDepth, currentDepth+1,-beta,-max(alpha,bestValue))[0]
@@ -415,6 +418,7 @@ def negaMax(maxDepth, currentDepth, alpha, beta):
 
 def negaScout(maxDepth, currentDepth, alpha, beta):   
     
+    global currentTime
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
         return handleWin(whosTurn,winCheck[1]),None
@@ -425,11 +429,12 @@ def negaScout(maxDepth, currentDepth, alpha, beta):
     bestValue = -INFINITY      
     moves = sort(legal_moves())
     if len(moves)==0:   # No moves in the list
-        if whosTurn==PIECE_RED:
-            return -INFINITY,None
-        return INFINITY,None
+        return -INFINITY,None
     for move in moves:
-        move.do()
+        currentTime += mainClock.tick()
+        if currentTime >= maxTime:
+            return -INFINITY,None
+        move.do()       
         currentScore = -negaMax(maxDepth,currentDepth+1,-adaptiveBeta,-max(alpha,bestValue))[0]
         move.undo()
         if currentScore > bestValue:
@@ -471,27 +476,26 @@ def processClick(mousePos):
                 if button.inside(x,y):
                     button.f()
             return
-        
         for theButton in inGameButtons:
             if theButton.inside(x,y):
                 theButton.f()
-                
-        for aButton in playBackButtons:
-            if playingRecord and aButton.inside(x,y):
-                aButton.f() 
-                       
-    elif soloGame:
-        for soloingButton in soloButtons:
-            if soloingButton.inside(x,y):
-                soloingButton.f()
-    elif options:
-        for optionButton in optionButtons:
-            if optionButton.inside(x,y):
-                optionButton.f()
-    else:
-        for aiTimeButton in AIButtons:
-            if aiTimeButton.inside(x,y):
-                aiTimeButton.f()
+        if playingRecord:
+            for aButton in playBackButtons:
+                if aButton.inside(x,y):
+                    aButton.f() 
+    elif not gameStarted:                   
+        if soloGame:
+            for soloingButton in soloButtons:
+                if soloingButton.inside(x,y):
+                    soloingButton.f()
+        elif options:
+            for optionButton in optionButtons:
+                if optionButton.inside(x,y):
+                    optionButton.f()
+        else:
+            for aiTimeButton in AIButtons:
+                if aiTimeButton.inside(x,y):
+                    aiTimeButton.f()
                 
     if gameOver:
         return
@@ -683,6 +687,7 @@ def resetBoard():
             s[6+i] = s[12+i] = s[17+i] = PIECE_RED | MAN
             s[34+i] = s[39+i] = s[45+i] = PIECE_BLACK | MAN
             s[23+i] = s[28+i] = FREE  
+            
 resetBoard()
 
 def perft(depth):
@@ -709,27 +714,36 @@ def perftest():
       
 def doComputer(ai = AI_NEGA):
     """ Activates the computer Player """
-    global selectedIndex, computerState,computerMove, numEvals, moveCount, gameOver
+    global selectedIndex, computerState,computerMove, numEvals, moveCount, gameOver, currentTime
     mainClock.tick()
+    currentTime = 0
+    depth = 1
+    bestMove = None
     if ai & AI_ALPHA:
-        bestMove = alphaBeta(3, 1,-INFINITY,INFINITY)[1]
+        while depth < 12:
+            tempMove = alphaBeta(depth, 0,-INFINITY,INFINITY)[1]
+            if tempMove:
+                bestMove = tempMove
+            else: break
+            depth += 1
         plrstring = "Alphabeta"
     elif ai & AI_MINI:
         bestMove = miniMax(5)[1] 
         plrstring = "Minimax"
     elif ai & AI_NEGA:
-        bestMove = negaScout(9, 1, -INFINITY, INFINITY)[1]
+        while depth < 12:
+            tempMove = negaScout(depth, 0, -INFINITY, INFINITY)[1]
+            if tempMove:
+                bestMove = tempMove
+            else: break
+            depth += 1
         plrstring = "NegaScout"
     elif ai & AI_RANDOM:
         bestMove = randomMove()
         plrstring = "Random"
 
-    print plrstring ,",", numEvals, ",",mainClock.tick()
+    print plrstring ,",", numEvals, ",",currentTime, ",", depth
     numEvals = 0
-    if moveCount > 150:
-        resetGame()
-        moveCount = 0
-        playerWon = "FAIL!"
     if bestMove:
         computerMove = bestMove
         selectedIndex = bestMove.affectedSquares[0][0]
@@ -754,7 +768,7 @@ def checkPieces(color=None):
         Checks for various attributes of pieces after each move 
         Also Checks for winners and determines the winner or if there is a tie.
     """
-    global gameOver, playerWon, whosTurn
+    global playerWon, whosTurn, gameOver
     redCanMove = False
     blackCanMove = False
     if legal_moves():
@@ -798,7 +812,7 @@ def resetGame():
     """ Allow's the game to be reset"""   
     global gameOver,whosTurn
     gameOver = False
-    whosTurn = PIECE_BLACK
+    whosTurn = PIECE_RED
     resetBoard()  
     
 def optionButton():
@@ -1102,7 +1116,7 @@ def updateRecord():
                 checkPieces()   
                 
 def statLoop():
-    global players,statCounter, gameOver,numberOfGames
+    global players,statCounter, gameOver,numberOfGames, moveCount
     localCounter = 0
     try:
         statCounter = pickle.load(open("Stats.txt","r"))
@@ -1110,7 +1124,7 @@ def statLoop():
         statCounter = 1
     while localCounter < numberOfGames:
         resetGame()
-        players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_RANDOM)]
+        players = [ComputerPlayer(PIECE_RED, AI_NEGA),ComputerPlayer(PIECE_BLACK, AI_ALPHA)]
         print "GAME #" , statCounter
         print players
         print ("Red first" if whosTurn&PIECE_RED else "Black first"), ",COUNT", ",TIME(MS)"
@@ -1119,16 +1133,22 @@ def statLoop():
                 if not player.started and player.getColor() == whosTurn:
                     isComputer = player.startTurn()
                     if isComputer[0]:
-                        doComputer(isComputer[1])
+                        if moveCount > 150:
+                            print "too many moves,blah"
+                            gameOver = True
+                        else:
+                            doComputer(isComputer[1])
                         if computerMove:
                             computerMove.do(True)
                             checkPieces()
+                        if gameOver: break
             for player in players:
                 player.started = False
         record.clear()
         pickle.dump(statCounter, open("Stats.txt","w"))
         statCounter += 1
         localCounter += 1
+        moveCount = 0
                 
 class statPrint:
     def write(self,txt):
@@ -1153,8 +1173,9 @@ def updateGame():
             if not player.started and player.getColor() == whosTurn:
                 isComputer = player.startTurn()
                 if isComputer[0]:
-                    
                     doComputer(isComputer[1])
+                    drawBoard()
+                    drawPieces()#update drawing so we don't get confused (ben failz)
                 else:
                     setPlayerMoves()
         updateComp()

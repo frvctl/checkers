@@ -1,6 +1,5 @@
 import pygame
 import pickle
-import datetime
 from pygame.locals import *
 
 class button:
