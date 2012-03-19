@@ -1,7 +1,6 @@
-## Authors: morghra94 and cracker64                                 ##
+## Created By: Benjamin Vest                                        ##
 ## ==========================SUMARY===============================  ##
 ## -> Checker's Game with an AI opponent                            ##
-## -> Still very much in production                                 ##
 ## -> Compare the effectiveness of three heuristic search algorithms##
 ##    namely the MiniMax, NegaScout, and Alpha-Beta                 ##
 ## ==========================DATES================================  ##
@@ -13,8 +12,10 @@
 ##               12-24-11                                           ## 
 ## -> Version 5: Added recording and play back  --> 12-26-11        ##
 ## -> Version 6: Complete revision of board system --> 12-31-11     ##
-## -> Version 7: Added time limited cut-off --> 1-9-12
+## -> Version 7: Added time limited cut-off --> 1-9-12              ##
 ## ==========================TODO=================================  ##
+## -> Fix FPS bug                                                   ##
+ 
 
 ## ======== Imports ========= ##
 import random
@@ -23,7 +24,7 @@ from classes import *
 from constants import *
 ## ========================== ##
 
-STATS = True
+STATS = True #If true the GUI will be suppressed -- for algorithm testing purposes
 
 pygame.init() # Initializes pygame
 mainClock = pygame.time.Clock() # Game clock: used for slowing down the AI opponent and tracks speed of functions
@@ -93,7 +94,7 @@ aiGame = False              # True when the AIButton is pressed, activates the A
 options = False             # True when the optionsButton is pressed, activates the options menu
 moveCount = 0               # Keeps track of the number of moves
 numberOfGames = 20          # The number of games stat loop goes through
-statCounter = 0
+statCounter = 0             
 currentTime = 0
 maxTime = 4000
 ## ===================================================================================================================================== ##
