@@ -69,7 +69,7 @@ if not STATS:
 gameOver = False            # Determines if game is over
 gameStarted = False         # Determines if game is started
 playerWon = "Winner"        # Keeps track of the winner
-whosTurn = PIECE_BLACK      # Starting turn
+whosTurn = PIECE_RED        # Starting turn
 selectedPiece = None        # Shows if there is a piece selected
 computerPlayer = False      # Makes the computer play
 computerState = 0           # Used to see what the computer is doing - if it equals 1 it is a red piece, if it equals 2 it is a black piece
@@ -91,10 +91,10 @@ soloGame = False            # True when soloButton is pressed, activates the sol
 aiGame = False              # True when the AIButton is pressed, activates the AI menu
 options = False             # True when the optionsButton is pressed, activates the options menu
 moveCount = 0               # Keeps track of the number of moves
-numberOfGames = 401         # The number of games stat loop goes through
+numberOfGames = 20          # The number of games stat loop goes through
 statCounter = 0             
-currentTime = 0             
-maxTime = 1000              
+currentTime = 0
+maxTime = 4000
 ## ===================================================================================================================================== ##
 
 class move:   
@@ -316,9 +316,8 @@ def randomMove():
         pass
     return bestMove
                
-def miniMax(depth):  
-     
-    global currentTime
+def miniMax(depth):   
+
     winCheck = checkPieces(whosTurn)
     if winCheck[0]:
         return handleWin(whosTurn,winCheck[1]),None
@@ -336,9 +335,6 @@ def miniMax(depth):
         return INFINITY,None
     
     for move in moves:
-        currentTime += mainClock.tick()
-        if currentTime >= maxTime:
-            return -INFINITY,None
         move.do()
         value = miniMax(depth-1)[0]
         move.undo()
@@ -405,7 +401,10 @@ def negaMax(maxDepth, currentDepth, alpha, beta):
         if currentTime >= maxTime:
             return -INFINITY,None
         move.do()
+        #if depth > 1:
         value = -negaMax(maxDepth, currentDepth+1,-beta,-max(alpha,bestValue))[0]
+        #else:
+        #    value = alphaBeta(depth-1,-beta,-localalpha)[0]
         move.undo()
         
         if value > bestValue:
@@ -720,7 +719,7 @@ def doComputer(ai = AI_NEGA):
     depth = 1
     bestMove = None
     if ai & AI_ALPHA:
-        while depth < 20:
+        while depth < 12:
             tempMove = alphaBeta(depth, 0,-INFINITY,INFINITY)[1]
             if tempMove:
                 bestMove = tempMove
@@ -728,15 +727,10 @@ def doComputer(ai = AI_NEGA):
             depth += 1
         plrstring = "Alphabeta"
     elif ai & AI_MINI:
-        while depth < 20:
-            tempMove = miniMax(depth)[1]
-            if tempMove:
-                bestMove = tempMove
-            else: break
-            depth += 1 
+        bestMove = miniMax(5)[1] 
         plrstring = "Minimax"
     elif ai & AI_NEGA:
-        while depth < 20:
+        while depth < 12:
             tempMove = negaScout(depth, 0, -INFINITY, INFINITY)[1]
             if tempMove:
                 bestMove = tempMove
@@ -817,7 +811,7 @@ def resetGame():
     """ Allow's the game to be reset"""   
     global gameOver,whosTurn
     gameOver = False
-    whosTurn = PIECE_BLACK
+    whosTurn = PIECE_RED
     resetBoard()  
     
 def optionButton():
@@ -1073,7 +1067,7 @@ def drawtext():
     textRect.centerx = text_X
     textRect.centery = text_Y
     windowSurface.blit(text, textRect)
-    #text = font2.render("FPS: " + repr(int(mainClock.get_fps())), True, WHITE)
+    text = font2.render("FPS: " + repr(int(mainClock.get_fps())), True, WHITE)
     textRect = text.get_rect()
     textRect.centerx = boardOffSetLeft_X/2
     textRect.centery = 800
