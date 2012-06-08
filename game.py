@@ -94,7 +94,7 @@ moveCount = 0               # Keeps track of the number of moves
 numberOfGames = 20          # The number of games stat loop goes through
 statCounter = 0             
 currentTime = 0
-maxTime = 4000
+maxTime = 1000
 ## ===================================================================================================================================== ##
 
 class move:   
